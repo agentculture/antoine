@@ -21,7 +21,9 @@ esac
 [ -z "$files" ] && { echo "(no files to check)"; exit 0; }
 
 # ----- Check 1: hard-coded /home/<user>/... paths -----
-hits1=$(echo "$files" | xargs -r grep -nE '/home/[a-z][a-z0-9_-]+/' 2>/dev/null || true)
+# seer-cli divergence: `xargs -r` is GNU-only and fails on BSD/macOS xargs.
+# `$files` is already guarded non-empty above, so `-r` is redundant — dropped.
+hits1=$(echo "$files" | xargs grep -nE '/home/[a-z][a-z0-9_-]+/' 2>/dev/null || true)
 
 # ----- Check 2: per-user dotfile *config* refs in committed docs/configs -----
 # Carve-outs (allowed, NOT flagged):
@@ -29,7 +31,9 @@ hits1=$(echo "$files" | xargs -r grep -nE '/home/[a-z][a-z0-9_-]+/' 2>/dev/null 
 #   - ~/.culture/                     Culture mesh data this skill is supposed to read
 md_yaml=$(echo "$files" | grep -E '\.(md|ya?ml|toml|json|jsonc)$' || true)
 if [ -n "$md_yaml" ]; then
-    hits2=$(echo "$md_yaml" | xargs -r grep -nE '~/\.[A-Za-z]' 2>/dev/null \
+    # seer-cli divergence: `xargs -r` is GNU-only; `$md_yaml` is guarded
+    # non-empty by the enclosing `if`, so `-r` is redundant — dropped.
+    hits2=$(echo "$md_yaml" | xargs grep -nE '~/\.[A-Za-z]' 2>/dev/null \
         | grep -vE '~/\.claude/skills/[^[:space:]"]+/scripts/' \
         | grep -vE '~/\.culture/' \
         || true)
