@@ -56,9 +56,11 @@ def _build_parser() -> argparse.ArgumentParser:
 
     from seer.cli._commands import explain as _explain_cmd
     from seer.cli._commands import learn as _learn_cmd
+    from seer.cli._commands import whoami as _whoami_cmd
 
     _learn_cmd.register(sub)
     _explain_cmd.register(sub)
+    _whoami_cmd.register(sub)
 
     return parser
 
