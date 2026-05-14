@@ -2,16 +2,17 @@
 
 This file provides guidance to Claude Code (claude.ai/code) when working with code in this repository.
 
-> **Status: seed stub.** As of the initial commit this repo contains only `README.md`,
-> `LICENSE`, and `.gitignore` — no source, build config, or tests yet. The sections below
-> record what is *verifiable today* plus the workspace conventions this project is expected
-> to follow. Expand this file (commands, architecture) once the first implementation lands.
+> **Status: seed stub.** This repo has no source, build config, or tests yet — just
+> `README.md`, `LICENSE`, `.gitignore`, and this file. The sections below record what is
+> *verifiable today* plus the workspace conventions this project is expected to follow.
+> Expand this file (commands, architecture) once the first implementation lands.
 
 ## What this is
 
 `seer-cli` — **codebase lookup and indexing for agent skills** (per `README.md`). An
-AgentCulture project (MIT, © 2026 AgentCulture), living as one project inside the
-multi-project workspace at `/home/spark/git/` (see the workspace-level `CLAUDE.md` there).
+AgentCulture project (MIT, © 2026 AgentCulture). It is developed as one project within a
+larger multi-project workspace, which may carry its own workspace-level `CLAUDE.md`; that
+file is not part of this repository.
 
 ## Expected conventions (not yet realized in code)
 
