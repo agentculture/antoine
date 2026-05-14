@@ -29,6 +29,8 @@ jobs:
 
       - run: uv run flake8 --config=.flake8 seer/ tests/
 
+      - run: uv run bandit -r seer/ -c pyproject.toml
+
       - run: uv run pytest -n auto --cov=seer --cov-report=xml:coverage.xml --cov-report=term -v
 
       - name: SonarCloud Scan
@@ -46,6 +48,9 @@ jobs:
     permissions:
       contents: read
       pull-requests: write
+      # The marker-comment list/patch calls hit the issues-comments REST
+      # surface (`gh api repos/.../issues/.../comments`), so grant issues too.
+      issues: write
     steps:
       - uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4
         with:

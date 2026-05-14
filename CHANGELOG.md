@@ -14,9 +14,9 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
   structured errors, a strict stdout/stderr split, and `--json` support.
 - Placeholder agent-first verbs `learn` / `explain` / `whoami` — honest
   "not yet implemented; seer is greenfield" stubs.
-- CI workflows: `tests.yml` (pytest + coverage + flake8 + SonarCloud +
-  version-check), `security-checks.yml` (bandit + pylint), `publish.yml`
-  (TestPyPI on PR, PyPI on main, via OIDC Trusted Publishing).
+- CI workflows: `tests.yml` (pytest + coverage + flake8 + bandit +
+  SonarCloud + version-check), `security-checks.yml` (bandit + pylint),
+  `publish.yml` (TestPyPI on PR, PyPI on main, via OIDC Trusted Publishing).
 - `culture.yaml` declaring the `seer` agent nick.
 - Vendored skills from steward: `cicd`, `communicate`, `run-tests`,
   `sonarclaude`, `version-bump`. Provenance tracked in
