@@ -2,36 +2,70 @@
 
 This file provides guidance to Claude Code (claude.ai/code) when working with code in this repository.
 
-> **Status: seed stub.** This repo has no source, build config, or tests yet — just
-> `README.md`, `LICENSE`, `.gitignore`, and this file. The sections below record what is
-> *verifiable today* plus the workspace conventions this project is expected to follow.
-> Expand this file (commands, architecture) once the first implementation lands.
+## Project Status
 
-## What this is
+`seer-cli` is an AgentCulture sibling repo — **codebase lookup and indexing for
+agent skills**. The onboarding scaffold is in place (package, CLI chassis, CI,
+vendored skills); the actual lookup and indexing engine — how codebases are
+scanned, the index format, where it is stored, and how agent skills consume the
+lookups — has **not** been designed yet. The `learn` / `explain` / `whoami`
+verbs are honest placeholder stubs.
 
-`seer-cli` — **codebase lookup and indexing for agent skills** (per `README.md`). An
-AgentCulture project (MIT, © 2026 AgentCulture). It is developed as one project within a
-larger multi-project workspace, which may carry its own workspace-level `CLAUDE.md`; that
-file is not part of this repository.
+## Build / Install
 
-## Expected conventions (not yet realized in code)
+```bash
+uv sync                       # install the package + dev dependencies
+```
 
-These are inherited from the workspace, not from anything in this repo — apply them when
-scaffolding the project, and update this file with the concrete commands once they exist:
+## Run
 
-- **Language/tooling:** Python with **uv** for dependency management — the workspace default,
-  and `.gitignore` is the standard Python template. Expect `uv venv && uv pip install -e ".[dev]"`
-  then `pytest` once `pyproject.toml` exists.
-- **Linting (Python):** `flake8`, `pylint`, `bandit -r src/`, `black`, `isort`.
-- **Git workflow:** branch out, implement, bump version, open PR, address review, merge.
-- **Naming:** the memory graph groups `seer-cli` with sibling AgentCulture CLIs (`appsec`,
-  `agtag`, `steward`, `shushu`) that share a common CLI-scaffold shape — a parser, a
-  sub-command registration hook, and a `main(argv)` entry point. Treat that as a likely
-  template, not a spec; confirm against actual code before relying on it.
+```bash
+uv run seer --version         # or: uv run python -m seer
+uv run seer learn             # placeholder verbs: learn / explain / whoami
+```
 
-## When code exists, document here
+## Test
 
-- Build / run / test commands, including how to run a single test.
-- The indexing pipeline: how codebases are scanned, what the index format is, where it's
-  stored, and how "agent skills" consume the lookups.
-- CLI surface: sub-commands and their entry points.
+```bash
+uv run pytest -n auto         # full suite
+uv run pytest tests/test_cli_chassis.py::test_no_args_prints_help_and_returns_zero -v   # single test (example node id)
+```
+
+## Lint / Format
+
+```bash
+uv run flake8 --config=.flake8 seer/ tests/
+uv run black seer/ tests/
+uv run isort seer/ tests/
+markdownlint-cli2 "**/*.md"
+```
+
+Bandit and pylint run in CI (`.github/workflows/security-checks.yml`).
+
+## Architecture
+
+- `seer/cli/__init__.py` — the argparse CLI chassis: structured error
+  routing (`_SeerArgumentParser`), `--json` hint detection, and
+  `_dispatch` (invokes the verb handler, translating `SeerError` and bare
+  exceptions to structured exit codes). `main()` is the entry point, exposed
+  as the `seer` console script and via `python -m seer`.
+- `seer/cli/_errors.py` — `SeerError` and the exit-code policy.
+- `seer/cli/_output.py` — strict stdout/stderr split helpers.
+- `seer/cli/_commands/` — one module per verb, each exposing `register()`.
+  All three verbs are currently greenfield stubs.
+
+## Version Management
+
+Every PR bumps the version in `pyproject.toml` (CI's `version-check` job
+blocks merge if it matches `main`) and prepends a `CHANGELOG.md` entry
+(convention — not CI-enforced). The vendored `version-bump` skill does both.
+
+## Vendored Skills
+
+`.claude/skills/` holds skills vendored from `steward` (cite, don't import).
+Provenance and divergence are tracked in `docs/skill-sources.md`. Re-sync
+from `../steward/.claude/skills/<name>/`.
+
+## Workspace Context
+
+The GitHub remote is `agentculture/seer-cli`. When opening PRs or posting comments here as an AI assistant, sign them so it's clear they're AI-authored — e.g. `- seer (Claude)`.
