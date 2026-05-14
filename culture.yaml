@@ -1,0 +1,3 @@
+agents:
+- suffix: seer
+  backend: claude
