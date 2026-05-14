@@ -54,8 +54,9 @@ def _build_parser() -> argparse.ArgumentParser:
     )
     sub = parser.add_subparsers(dest="command", parser_class=_SeerArgumentParser)
 
-    # Verb modules register themselves here; added one per scaffold commit.
-    del sub  # no verbs registered yet — the chassis lands before the verbs
+    from seer.cli._commands import learn as _learn_cmd
+
+    _learn_cmd.register(sub)
 
     return parser
 
