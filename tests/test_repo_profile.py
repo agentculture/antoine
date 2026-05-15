@@ -306,6 +306,66 @@ def test_profile_shallow_ci_workflows(tmp_path: Path) -> None:
     assert wf[1]["name"] == "Tests"
 
 
+def test_profile_shallow_publish_target_pypi(tmp_path: Path) -> None:
+    """publish_target detects pypa/gh-action-pypi-publish + push:tags trigger."""
+    repo = tmp_path / "demo"
+    repo.mkdir()
+    (repo / "pyproject.toml").write_text('[project]\nname = "demo"\n')
+    wf_dir = repo / ".github" / "workflows"
+    wf_dir.mkdir(parents=True)
+    (wf_dir / "publish.yml").write_text(
+        "name: Publish\n"
+        "on:\n"
+        "  push:\n"
+        "    tags: [v*]\n"
+        "jobs:\n"
+        "  publish:\n"
+        "    uses: pypa/gh-action-pypi-publish@v1\n"
+    )
+    p = profile_shallow(repo)
+    pt = p["publish_target"]
+    assert pt is not None
+    assert pt["kind"] == "pypi"
+    assert pt["workflow"] == "publish.yml"
+    assert pt["trigger"] == "push: tags"
+
+
+def test_profile_shallow_publish_target_ghcr(tmp_path: Path) -> None:
+    """publish_target detects ghcr.io references."""
+    repo = tmp_path / "demo"
+    repo.mkdir()
+    (repo / "pyproject.toml").write_text('[project]\nname = "demo"\n')
+    wf_dir = repo / ".github" / "workflows"
+    wf_dir.mkdir(parents=True)
+    (wf_dir / "docker.yml").write_text(
+        "name: Docker\n"
+        "on:\n"
+        "  push:\n"
+        "    branches: [main]\n"
+        "jobs:\n"
+        "  build:\n"
+        "    steps:\n"
+        "      - run: docker push ghcr.io/owner/image:latest\n"
+    )
+    p = profile_shallow(repo)
+    pt = p["publish_target"]
+    assert pt is not None
+    assert pt["kind"] == "ghcr"
+    assert pt["workflow"] == "docker.yml"
+
+
+def test_profile_shallow_publish_target_none(tmp_path: Path) -> None:
+    """publish_target is None when no pypi/ghcr workflows are found."""
+    repo = tmp_path / "demo"
+    repo.mkdir()
+    (repo / "pyproject.toml").write_text('[project]\nname = "demo"\n')
+    wf_dir = repo / ".github" / "workflows"
+    wf_dir.mkdir(parents=True)
+    (wf_dir / "tests.yml").write_text("name: Tests\non: push\njobs: {}\n")
+    p = profile_shallow(repo)
+    assert p["publish_target"] is None
+
+
 def test_profile_shallow_ci_workflows_no_workflows_dir(tmp_path: Path) -> None:
     """ci_workflows returns empty list when .github/workflows is absent."""
     repo = tmp_path / "demo"
