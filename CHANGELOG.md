@@ -16,6 +16,8 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 ### Fixed
 
 - scripts-eval: judge no longer sees each answer's `### tools_used` / `### evidence` tail. Those tails de-blind the pairwise comparison — arm C's tail can name `scripts/profile.sh` or `seer.repo`, immediately revealing the equipped arm to the judge. The strip is applied in `prepare`'s view only; `answer_text` on disk is unchanged so `validate.py` recall scores stay stable.
+- scripts-eval: `_extract_json` now scans for balanced `{...}` spans (respecting nested braces and quoted strings) and returns the *first* valid JSON object, matching the RUNBOOK contract. The previous greedy `r"\{.*\}"` regex captured from the first `{` to the *last* `}`, so a chatty subagent emitting multiple JSON blobs (false start + correction) would either fail to parse or persist the wrong object.
+- scripts-eval: `record_verdict` now validates blind-label complementarity before any disk I/O — both labels must be in `{answer_X, answer_Y}` and distinct. The previous code allowed identical labels through `_de_blind`, which would silently return `A` and persist the wrong winner to the locked-surface `judge.comparison`.
 
 ## [0.2.2] - 2026-05-15
 

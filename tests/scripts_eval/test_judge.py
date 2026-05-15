@@ -413,3 +413,101 @@ class TestRecord:
                 rubric_version="v1",
                 judge_model="m",
             )
+
+    def test_extracts_first_json_object_with_multiple_candidates(self, monkeypatch, tmp_path):
+        """A chatty subagent may emit several `{...}` blobs (false start +
+        correction). RUNBOOK promises the first valid one wins — a greedy
+        ``r"\\{.*\\}"`` span would otherwise capture from the first ``{``
+        to the *last* ``}`` and either fail to parse or return the wrong
+        object."""
+        monkeypatch.setattr(_io, "REPO_ROOT", tmp_path)
+        rd = _io.run_dir("r1")
+        rd.mkdir(parents=True)
+        _seed_pair(rd, "q1", "culture", 1)
+
+        verdict_text = (
+            "Let me think... first attempt:\n"
+            '{"winner": "X", "margin": "tie", "reasoning": "first try"}\n'
+            "Actually, on reflection:\n"
+            '{"winner": "Y", "margin": "decisive", "reasoning": "second try"}'
+        )
+        a_path, _ = judge.record_verdict(
+            "r1",
+            pair_key="culture/q1/1",
+            verdict_text=verdict_text,
+            blind_label_for_a="answer_X",
+            blind_label_for_c="answer_Y",
+            rubric_version="v1",
+            judge_model="m",
+        )
+        cmp_ = _io.read_json(a_path)["judge"]["comparison"]
+        # First valid JSON wins.
+        assert cmp_["margin"] == "tie"
+        assert cmp_["reasoning"] == "first try"
+        assert cmp_["winner"] == "A"  # X under a_label=answer_X
+
+    def test_extracts_json_with_nested_braces(self, monkeypatch, tmp_path):
+        """Balanced-brace scanning must respect nested objects and quoted
+        strings — a future rubric may include sub-objects in the verdict
+        and braces inside ``reasoning`` strings are also possible."""
+        monkeypatch.setattr(_io, "REPO_ROOT", tmp_path)
+        rd = _io.run_dir("r1")
+        rd.mkdir(parents=True)
+        _seed_pair(rd, "q1", "culture", 1)
+
+        verdict_text = (
+            'Verdict: {"winner": "X", "margin": "clear", '
+            '"reasoning": "X cites {nested} braces in its body"} (done)'
+        )
+        a_path, _ = judge.record_verdict(
+            "r1",
+            pair_key="culture/q1/1",
+            verdict_text=verdict_text,
+            blind_label_for_a="answer_X",
+            blind_label_for_c="answer_Y",
+            rubric_version="v1",
+            judge_model="m",
+        )
+        cmp_ = _io.read_json(a_path)["judge"]["comparison"]
+        assert cmp_["reasoning"] == "X cites {nested} braces in its body"
+        assert cmp_["margin"] == "clear"
+
+    def test_record_rejects_identical_blind_labels(self, monkeypatch, tmp_path):
+        """If a caller passes the same blind label for A and C, de-blinding
+        is ambiguous — silently returning ``A`` (which the current
+        ``_de_blind`` does) would persist the wrong winner to the locked
+        surface. Fail loudly instead."""
+        monkeypatch.setattr(_io, "REPO_ROOT", tmp_path)
+        rd = _io.run_dir("r1")
+        rd.mkdir(parents=True)
+        _seed_pair(rd, "q1", "culture", 1)
+
+        with pytest.raises(ValueError, match="blind_label"):
+            judge.record_verdict(
+                "r1",
+                pair_key="culture/q1/1",
+                verdict_text='{"winner": "X", "margin": "tie", "reasoning": ""}',
+                blind_label_for_a="answer_X",
+                blind_label_for_c="answer_X",  # same as A — invalid
+                rubric_version="v1",
+                judge_model="m",
+            )
+
+    def test_record_rejects_invalid_blind_label_values(self, monkeypatch, tmp_path):
+        """blind labels must be in {answer_X, answer_Y}; anything else
+        means a bug in the caller and should fail before disk I/O."""
+        monkeypatch.setattr(_io, "REPO_ROOT", tmp_path)
+        rd = _io.run_dir("r1")
+        rd.mkdir(parents=True)
+        _seed_pair(rd, "q1", "culture", 1)
+
+        with pytest.raises(ValueError, match="blind_label"):
+            judge.record_verdict(
+                "r1",
+                pair_key="culture/q1/1",
+                verdict_text='{"winner": "X", "margin": "tie", "reasoning": ""}',
+                blind_label_for_a="answer_Z",  # invalid value
+                blind_label_for_c="answer_Y",
+                rubric_version="v1",
+                judge_model="m",
+            )

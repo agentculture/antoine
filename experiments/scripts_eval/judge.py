@@ -141,15 +141,55 @@ _WINNER_VOCAB = {"X", "Y", "tie"}
 _MARGIN_VOCAB = {"tie", "slight", "clear", "decisive"}
 
 
+_BLIND_LABEL_VOCAB = {"answer_X", "answer_Y"}
+
+
 def _extract_json(text: str) -> dict:
-    """Lift the first ``{...}`` blob out of *text* and parse it."""
-    match = re.search(r"\{.*\}", text, flags=re.DOTALL)
-    if not match:
-        raise ValueError(f"judge returned non-JSON: {text[:200]!r}")
-    try:
-        return json.loads(match.group(0))
-    except json.JSONDecodeError as exc:
-        raise ValueError(f"judge returned non-JSON ({exc.msg}): {match.group(0)[:200]!r}") from exc
+    """Lift the *first* valid JSON object out of *text* and parse it.
+
+    Scans for balanced ``{...}`` spans (respecting nested braces and
+    quoted strings), tries ``json.loads`` on each candidate, and returns
+    the first that parses. A greedy ``r"\\{.*\\}"`` would span from the
+    first ``{`` to the *last* ``}`` and either fail or pick the wrong
+    object when a chatty subagent emits multiple blobs.
+    """
+    n = len(text)
+    last_error: json.JSONDecodeError | None = None
+    for i in range(n):
+        if text[i] != "{":
+            continue
+        depth = 0
+        in_string = False
+        escape = False
+        for j in range(i, n):
+            ch = text[j]
+            if escape:
+                escape = False
+                continue
+            if ch == "\\":
+                escape = True
+                continue
+            if ch == '"':
+                in_string = not in_string
+                continue
+            if in_string:
+                continue
+            if ch == "{":
+                depth += 1
+            elif ch == "}":
+                depth -= 1
+                if depth == 0:
+                    candidate = text[i : j + 1]
+                    try:
+                        return json.loads(candidate)
+                    except json.JSONDecodeError as exc:
+                        last_error = exc
+                        break  # try the next opening brace
+    if last_error is not None:
+        raise ValueError(
+            f"judge returned non-JSON ({last_error.msg}): {text[:200]!r}"
+        ) from last_error
+    raise ValueError(f"judge returned non-JSON: {text[:200]!r}")
 
 
 def _validate_verdict(verdict: dict) -> dict:
@@ -167,12 +207,41 @@ def _validate_verdict(verdict: dict) -> dict:
     return verdict
 
 
+def _validate_blind_labels(blind_label_for_a: str, blind_label_for_c: str) -> None:
+    """Reject malformed blind label pairs before any disk I/O.
+
+    Both labels must be in ``{answer_X, answer_Y}`` and they must be
+    distinct — otherwise de-blinding is ambiguous and a silent wrong
+    winner would land in the locked-surface ``judge`` block.
+    """
+    if blind_label_for_a not in _BLIND_LABEL_VOCAB:
+        raise ValueError(
+            f"blind_label_for_a must be one of {sorted(_BLIND_LABEL_VOCAB)} "
+            f"(got {blind_label_for_a!r})"
+        )
+    if blind_label_for_c not in _BLIND_LABEL_VOCAB:
+        raise ValueError(
+            f"blind_label_for_c must be one of {sorted(_BLIND_LABEL_VOCAB)} "
+            f"(got {blind_label_for_c!r})"
+        )
+    if blind_label_for_a == blind_label_for_c:
+        raise ValueError(
+            f"blind_label_for_a and blind_label_for_c must be distinct "
+            f"(both got {blind_label_for_a!r})"
+        )
+
+
 def _de_blind(
     winner_letter: str,
     blind_label_for_a: str,
     blind_label_for_c: str,
 ) -> str:
-    """Map the verdict's X/Y/tie back to A/C/tie via the blind labels."""
+    """Map the verdict's X/Y/tie back to A/C/tie via the blind labels.
+
+    Callers should validate label complementarity via
+    ``_validate_blind_labels`` before reaching here; the trailing
+    ``ValueError`` is a defensive backstop for direct internal callers.
+    """
     if winner_letter == "tie":
         return "tie"
     target = f"answer_{winner_letter}"
@@ -208,6 +277,7 @@ def record_verdict(
     block cleanly. Raises ``ValueError`` on a malformed verdict text or
     when no cells exist for *pair_key*.
     """
+    _validate_blind_labels(blind_label_for_a, blind_label_for_c)
     repo_id, qid, trial = _parse_pair_key(pair_key)
     rd = _io.run_dir(run_id)
     a_by = _load_arm(rd, "A")
