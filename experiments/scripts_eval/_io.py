@@ -4,6 +4,7 @@ All paths resolve relative to the seer-cli repo root, so scripts work
 regardless of cwd. Env-var helpers return None when unset rather than
 raising — call sites decide whether the absence is fatal.
 """
+
 from __future__ import annotations
 
 import json
@@ -30,9 +31,7 @@ def eval_arm() -> str | None:
     if val is None or val == "":
         return None
     if val not in ("A", "C"):
-        raise ValueError(
-            f"SEER_EVAL_ARM must be 'A' or 'C' (got {val!r})"
-        )
+        raise ValueError(f"SEER_EVAL_ARM must be 'A' or 'C' (got {val!r})")
     return val
 
 
@@ -51,13 +50,13 @@ def arm_dir(run_id: str, arm: str) -> Path:
     return run_dir(run_id) / f"arm-{arm}"
 
 
-def write_json(path: Path, data) -> None:
+def write_json(path: Path, data: object) -> None:
     """Write *data* as pretty JSON, creating parent dirs."""
     path.parent.mkdir(parents=True, exist_ok=True)
     text = json.dumps(data, indent=2, sort_keys=False)
     path.write_text(text + "\n", encoding="utf-8")
 
 
-def read_json(path: Path):
+def read_json(path: Path) -> object:
     """Read JSON from *path*."""
     return json.loads(path.read_text(encoding="utf-8"))

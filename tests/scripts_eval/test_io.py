@@ -1,9 +1,8 @@
 """Tests for experiments.scripts_eval._io shared helpers."""
+
 from __future__ import annotations
 
 import json
-import os
-from pathlib import Path
 
 import pytest
 
