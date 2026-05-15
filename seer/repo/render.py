@@ -59,46 +59,57 @@ def _append_changelog(lines: list[str], changelog: list[dict]) -> None:
         lines.append(_changelog_line(entry))
 
 
+def _append_deps_runtime(lines: list[str], deps: list[str]) -> None:
+    """Append the `## Runtime dependencies` block."""
+    lines.append("")
+    lines.append(f"## Runtime dependencies ({len(deps)})")
+    for d in deps:
+        lines.append(f"- {d}")
+
+
+def _append_package_layout(lines: list[str], layout: list[str]) -> None:
+    """Append the `## Package layout` block."""
+    lines.append("")
+    lines.append("## Package layout")
+    for item in layout:
+        lines.append(f"- {item}")
+
+
+def _append_project_status(lines: list[str], status: str) -> None:
+    """Append the `## Project status` block."""
+    lines.append("")
+    lines.append("## Project status")
+    lines.append(status)
+
+
+def _append_extra(lines: list[str], extra: dict[str, Any]) -> None:
+    """Append the `## Extra` key/value block."""
+    lines.append("")
+    lines.append("## Extra")
+    for k, v in extra.items():
+        lines.append(f"- **{k}:** {v}")
+
+
 def _append_shallow_sections(lines: list[str], profile: dict[str, Any]) -> None:
-    """Append all shallow-profile sections (deps, layout, skills, citations, etc.)."""
-    deps = profile.get("deps_runtime") or []
-    if deps:
-        lines.append("")
-        lines.append(f"## Runtime dependencies ({len(deps)})")
-        for d in deps:
-            lines.append(f"- {d}")
+    """Append every populated shallow-profile section to *lines*.
 
-    layout = profile.get("package_layout") or []
-    if layout:
-        lines.append("")
-        lines.append("## Package layout")
-        for item in layout:
-            lines.append(f"- {item}")
-
-    skills = profile.get("vendored_skills") or []
-    if skills:
+    The body is a flat sequence of "if this section has content, render it"
+    calls; each per-section appender keeps its own complexity small.
+    """
+    if deps := profile.get("deps_runtime") or []:
+        _append_deps_runtime(lines, deps)
+    if layout := profile.get("package_layout") or []:
+        _append_package_layout(lines, layout)
+    if skills := profile.get("vendored_skills") or []:
         _append_skill_table(lines, skills)
-
-    citations = profile.get("citations") or []
-    if citations:
+    if citations := profile.get("citations") or []:
         _append_citation_table(lines, citations)
-
-    changelog = profile.get("changelog_recent") or []
-    if changelog:
+    if changelog := profile.get("changelog_recent") or []:
         _append_changelog(lines, changelog)
-
-    status = profile.get("claude_md_status") or ""
-    if status:
-        lines.append("")
-        lines.append("## Project status")
-        lines.append(status)
-
-    extra = profile.get("extra") or {}
-    if extra:
-        lines.append("")
-        lines.append("## Extra")
-        for k, v in extra.items():
-            lines.append(f"- **{k}:** {v}")
+    if status := profile.get("claude_md_status") or "":
+        _append_project_status(lines, status)
+    if extra := profile.get("extra") or {}:
+        _append_extra(lines, extra)
 
 
 def _append_deep_sections(lines: list[str], profile: dict[str, Any]) -> None:

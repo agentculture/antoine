@@ -16,10 +16,86 @@ from seer.repo.connections import _edges_from_profile
 from seer.repo.detect import find_repos, resolve_name
 from seer.repo.profile import profile_shallow
 
-_SAFE_RE = re.compile(r"[^A-Za-z0-9_]")
+# ASCII flag is essential: without it, ``\W`` in Python 3 excludes Unicode
+# letters/digits from the "unsafe" set, which would leave non-ASCII chars
+# in Mermaid node ids. ``re.ASCII`` collapses ``\W`` to ``[^A-Za-z0-9_]``.
+_SAFE_RE = re.compile(r"\W", re.ASCII)
 
 
-def build_graph(  # pylint: disable=too-many-locals
+def _discover_repos(
+    roots: list[Path],
+    additional_markers: list[str] | None,
+    skip_dirs: list[str] | None,
+) -> dict[str, Path]:
+    """Union-discover every repo under *roots*, mapped by resolved name."""
+    name_to_path: dict[str, Path] = {}
+    for root in roots:
+        if not root.is_dir():
+            continue
+        for repo in find_repos(
+            root,
+            additional_markers=additional_markers,
+            skip_dirs=skip_dirs,
+        ):
+            name_to_path.setdefault(resolve_name(repo), repo)
+    return name_to_path
+
+
+def _profile_or_walk_error(
+    name: str,
+    path: Path,
+    *,
+    strict: bool,
+    walk_errors: list[dict[str, str]],
+) -> dict[str, Any]:
+    """Return ``profile_shallow(path)`` or inline the error and return ``{}``.
+
+    Re-raises when ``strict`` is True.
+    """
+    try:
+        return profile_shallow(path)
+    except SeerError as err:
+        if strict:
+            raise
+        walk_errors.append(
+            {
+                "node": f"{name} ({path})",
+                "reason": err.reason or err.message,
+                "remediation": err.remediation,
+            }
+        )
+        return {}
+
+
+def _collect_nodes_and_edges(
+    name_to_path: dict[str, Path],
+    strict: bool,
+) -> tuple[list[dict[str, Any]], list[dict[str, str]], set[str], list[dict[str, str]]]:
+    """Build the (nodes, edges, externals, walk_errors) tuple for the workspace."""
+    nodes: list[dict[str, Any]] = []
+    edges: list[dict[str, str]] = []
+    external_seen: set[str] = set()
+    walk_errors: list[dict[str, str]] = []
+
+    for name, path in sorted(name_to_path.items()):
+        profile = _profile_or_walk_error(name, path, strict=strict, walk_errors=walk_errors)
+        nodes.append(
+            {
+                "id": name,
+                "path": str(path),
+                "external": False,
+                "version": profile.get("version", ""),
+            }
+        )
+        for edge in _edges_from_profile(name, profile):
+            edges.append(edge)
+            target = edge["to"]
+            if target not in name_to_path and target not in external_seen:
+                external_seen.add(target)
+    return nodes, edges, external_seen, walk_errors
+
+
+def build_graph(
     roots: list[Path],
     *,
     additional_markers: list[str] | None = None,
@@ -49,50 +125,8 @@ def build_graph(  # pylint: disable=too-many-locals
     dict with keys:
         ``roots``, ``nodes``, ``edges``, ``walk_errors``, ``mermaid``.
     """
-    name_to_path: dict[str, Path] = {}
-    for root in roots:
-        if not root.is_dir():
-            continue
-        for repo in find_repos(
-            root,
-            additional_markers=additional_markers,
-            skip_dirs=skip_dirs,
-        ):
-            name_to_path.setdefault(resolve_name(repo), repo)
-
-    nodes: list[dict[str, Any]] = []
-    edges: list[dict[str, str]] = []
-    external_seen: set[str] = set()
-    walk_errors: list[dict[str, str]] = []
-
-    for name, path in sorted(name_to_path.items()):
-        try:
-            p = profile_shallow(path)
-        except SeerError as err:
-            if strict:
-                raise
-            walk_errors.append(
-                {
-                    "node": f"{name} ({path})",
-                    "reason": err.reason or err.message,
-                    "remediation": err.remediation,
-                }
-            )
-            p = {}
-        nodes.append(
-            {
-                "id": name,
-                "path": str(path),
-                "external": False,
-                "version": p.get("version", ""),
-            }
-        )
-        for edge in _edges_from_profile(name, p):
-            edges.append(edge)
-            target = edge["to"]
-            if target not in name_to_path and target not in external_seen:
-                external_seen.add(target)
-
+    name_to_path = _discover_repos(roots, additional_markers, skip_dirs)
+    nodes, edges, external_seen, walk_errors = _collect_nodes_and_edges(name_to_path, strict)
     for ext in sorted(external_seen):
         nodes.append({"id": ext, "path": None, "external": True})
 

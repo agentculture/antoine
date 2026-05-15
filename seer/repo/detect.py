@@ -52,26 +52,35 @@ def find_repos(
     return sorted(repos, key=lambda p: p.name)
 
 
+def _name_from_pyproject(path: Path) -> str | None:
+    """Return ``[project].name`` from *path*'s ``pyproject.toml`` if present and parseable."""
+    pyproject = path / "pyproject.toml"
+    if not pyproject.exists():
+        return None
+    try:
+        data = tomllib.loads(pyproject.read_text(encoding="utf-8"))
+    except (tomllib.TOMLDecodeError, OSError):
+        return None
+    name = (data.get("project") or {}).get("name")
+    return str(name) if name else None
+
+
+def _name_from_culture_yaml(path: Path) -> str | None:
+    """Return the first agent's nick (``suffix`` or ``nick``) from ``culture.yaml`` if any."""
+    culture_yaml = path / "culture.yaml"
+    if not culture_yaml.exists():
+        return None
+    try:
+        data = yaml.safe_load(culture_yaml.read_text(encoding="utf-8")) or {}
+    except (yaml.YAMLError, OSError):
+        return None
+    agents = data.get("agents", [])
+    if not agents or not isinstance(agents[0], dict):
+        return None
+    nick = agents[0].get("suffix") or agents[0].get("nick")
+    return str(nick) if nick else None
+
+
 def resolve_name(path: Path) -> str:
     """Return the repo's preferred name (pyproject → culture.yaml → basename)."""
-    pyproject = path / "pyproject.toml"
-    if pyproject.exists():
-        try:
-            data = tomllib.loads(pyproject.read_text(encoding="utf-8"))
-            name = (data.get("project") or {}).get("name")
-            if name:
-                return str(name)
-        except (tomllib.TOMLDecodeError, OSError):
-            pass  # fall through to next source
-    culture_yaml = path / "culture.yaml"
-    if culture_yaml.exists():
-        try:
-            data = yaml.safe_load(culture_yaml.read_text(encoding="utf-8")) or {}
-            agents = data.get("agents", [])
-            if agents and isinstance(agents[0], dict):
-                nick = agents[0].get("suffix") or agents[0].get("nick")
-                if nick:
-                    return str(nick)
-        except (yaml.YAMLError, OSError):
-            pass
-    return path.name
+    return _name_from_pyproject(path) or _name_from_culture_yaml(path) or path.name

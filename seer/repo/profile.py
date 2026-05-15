@@ -151,6 +151,14 @@ def _read_citations(path: Path) -> list[dict[str, str]]:
     return out
 
 
+def _is_changelog_summary_line(line: str) -> bool:
+    """True when *line* is the first body line that should become an entry summary."""
+    body = line.strip()
+    if not body:
+        return False
+    return not body.startswith("#")
+
+
 def _read_changelog(path: Path, *, n: int) -> list[dict[str, str]]:
     """Return up to ``n`` recent entries from ``CHANGELOG.md`` (Keep-a-Changelog)."""
     f = path / "CHANGELOG.md"
@@ -171,10 +179,9 @@ def _read_changelog(path: Path, *, n: int) -> list[dict[str, str]]:
             continue
         if current is None or seen_summary:
             continue
-        body = line.strip()
-        if not body or body.startswith("#") or body.startswith("###"):
+        if not _is_changelog_summary_line(line):
             continue
-        current["summary"] = body.lstrip("-").strip()
+        current["summary"] = line.strip().lstrip("-").strip()
         seen_summary = True
     if current is not None and len(entries) < n:
         entries.append(current)
