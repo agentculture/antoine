@@ -58,6 +58,15 @@ questions:
         - "game-mode"
         - "bats"
         - "content repo"
+      agtag:
+        - "Agent to Agent communication CLI"
+        - "gh CLI"
+        - "issue post"
+        - "issue fetch"
+        - "issue reply"
+        - pyproject.toml
+        - "pyyaml"
+        - "culture.yaml"
 
   - id: q-connections-1hop
     type: connections
@@ -92,6 +101,15 @@ questions:
         - "bats-core"
         - "Jekyll"
         - "CLAUDE_PLUGIN_ROOT"
+      agtag:
+        - "agentculture/agtag"
+        - steward
+        - "gh CLI"
+        - "pyyaml>=6.0"
+        - "cicd"
+        - "version-bump"
+        - "communicate"
+        - "culture.yaml"
 
   - id: q-graph-workspace
     type: graph
@@ -135,6 +153,15 @@ questions:
         - "plugin.json"
         - "/guide:onboard"
         - "game-mode"
+      agtag:
+        - "agtag/cli/__init__.py"
+        - "_build_parser"
+        - "_dispatch"
+        - "agtag/issue/"
+        - "issue post"
+        - "issue fetch"
+        - "issue reply"
+        - "agtag/nick.py"
 
   - id: q-transfer-cli
     type: transfer
@@ -168,6 +195,15 @@ questions:
         - "no build system"
         - "content repo"
         - "/plugin install"
+      agtag:
+        - "[project.scripts]"
+        - "agtag.cli:main"
+        - pyproject.toml
+        - hatchling
+        - "argparse"
+        - "_ArgumentParser"
+        - "agtag/cli/__init__.py"
+        - "uv sync"
 
   - id: q-transfer-quality
     type: transfer
@@ -201,3 +237,12 @@ questions:
         - "Jekyll"
         - "docs-freshness.yml"
         - "bats tests/*.bats"
+      agtag:
+        - "tests.yml"
+        - "publish.yml"
+        - bandit
+        - flake8
+        - SonarCloud
+        - "pytest-cov"
+        - "version-check"
+        - "markdownlint-cli2"
