@@ -2,9 +2,10 @@
 
 from __future__ import annotations
 
+import subprocess
 from pathlib import Path
 
-from seer.repo.profile import profile_shallow
+from seer.repo.profile import profile_deep, profile_shallow
 
 
 def _mk_fixture_repo(root: Path) -> Path:
@@ -108,3 +109,56 @@ def test_profile_shallow_no_manifest_repo(tmp_path: Path) -> None:
     assert p["language"] == "unknown"
     assert p["manifest"] is None
     assert p["name"] == "doc-only"
+
+
+def test_profile_deep_adds_fields(tmp_path: Path) -> None:
+    """Deep profile includes readme_intro, claude_md_sections, and commits_recent."""
+    repo = _mk_fixture_repo(tmp_path / "demo")
+    (repo / "README.md").write_text("""# demo
+
+This is the intro paragraph that should be extracted verbatim, no
+trailing newline trimming hassles.
+
+## Subsection
+
+Other stuff.
+""")
+    (repo / "CLAUDE.md").write_text((repo / "CLAUDE.md").read_text() + """
+
+## Architecture
+
+Three layers. Read top to bottom.
+
+## Design Invariants
+
+1. No LLM calls.
+""")
+    # init a git repo with one commit so commits_recent has data
+    _git = ["git", "-C", str(repo)]  # noqa: S607
+    subprocess.run([*_git, "init", "-q"], check=True)  # noqa: S607
+    subprocess.run([*_git, "config", "user.email", "x@y"], check=True)  # noqa: S607
+    subprocess.run([*_git, "config", "user.name", "x"], check=True)  # noqa: S607
+    subprocess.run([*_git, "add", "-A"], check=True)  # noqa: S607
+    subprocess.run([*_git, "commit", "-q", "-m", "test: seed commit"], check=True)  # noqa: S607
+
+    p = profile_deep(repo)
+    # shallow keys still present
+    assert p["name"] == "demo"
+    # deep additions
+    assert "intro paragraph" in p["readme_intro"]
+    assert "Architecture" in p["claude_md_sections"]
+    assert "Three layers" in p["claude_md_sections"]
+    assert "Design Invariants" in p["claude_md_sections"]
+    assert "No LLM calls" in p["claude_md_sections"]
+    assert p["commits_recent"] == ["test: seed commit"]
+
+
+def test_profile_deep_missing_readme_and_git(tmp_path: Path) -> None:
+    """Deep profile degrades gracefully when README and .git are absent."""
+    repo = tmp_path / "bare"
+    repo.mkdir()
+    (repo / "pyproject.toml").write_text('[project]\nname = "b"\n')
+    p = profile_deep(repo)
+    assert p["readme_intro"] == ""
+    assert p["claude_md_sections"] == ""
+    assert p["commits_recent"] == []

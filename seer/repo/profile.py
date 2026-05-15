@@ -12,6 +12,7 @@ Missing optional sources degrade silently to empty fields.
 
 from __future__ import annotations
 
+import subprocess  # noqa: S404
 from pathlib import Path
 
 import yaml
@@ -220,3 +221,84 @@ def _read_culture_nick(path: Path) -> str:
     if not agents or not isinstance(agents[0], dict):
         return ""
     return str(agents[0].get("suffix") or agents[0].get("nick") or "")
+
+
+_DEEP_HEADINGS = ("## Project Status", "## Architecture")
+_DEEP_KEYWORDS = ("invariant", "rule", "contract")
+
+
+def profile_deep(path: Path) -> dict[str, object]:
+    """Shallow profile + readme intro, design-section text, recent commits."""
+    p = profile_shallow(path)
+    p["readme_intro"] = _read_readme_intro(path)
+    p["claude_md_sections"] = _read_claude_md_design_sections(path)
+    p["commits_recent"] = _read_recent_commits(path, n=10)
+    return p
+
+
+def _read_readme_intro(path: Path) -> str:
+    """Return the first non-heading paragraph of ``README.md``."""
+    f = path / "README.md"
+    if not f.exists():
+        return ""
+    out: list[str] = []
+    saw_content = False
+    for line in f.read_text(encoding="utf-8").splitlines():
+        if line.startswith("#"):
+            if saw_content:
+                break
+            continue
+        if not line.strip():
+            if saw_content:
+                break
+            continue
+        saw_content = True
+        out.append(line.rstrip())
+    return "\n".join(out).strip()
+
+
+def _read_claude_md_design_sections(path: Path) -> str:
+    """Return concatenated text of design-related ``## ...`` sections in CLAUDE.md."""
+    f = path / "CLAUDE.md"
+    if not f.exists():
+        return ""
+    chunks: list[str] = []
+    current_heading: str | None = None
+    current_body: list[str] = []
+    for line in f.read_text(encoding="utf-8").splitlines():
+        if line.startswith("## "):
+            if current_heading and _heading_is_design(current_heading):
+                chunks.append(current_heading + "\n" + "\n".join(current_body).rstrip())
+            current_heading = line.strip()
+            current_body = []
+            continue
+        current_body.append(line)
+    if current_heading and _heading_is_design(current_heading):
+        chunks.append(current_heading + "\n" + "\n".join(current_body).rstrip())
+    return "\n\n".join(chunks).strip()
+
+
+def _heading_is_design(heading: str) -> bool:
+    """Return True for headings that capture design intent (status/architecture/invariants/etc.)."""
+    if heading in _DEEP_HEADINGS:
+        return True
+    low = heading.lower()
+    return any(k in low for k in _DEEP_KEYWORDS)
+
+
+def _read_recent_commits(path: Path, *, n: int) -> list[str]:
+    """Return up to ``n`` recent commit subjects via ``git log`` (empty list if no git)."""
+    if not (path / ".git").exists():
+        return []
+    try:
+        result = subprocess.run(  # noqa: S603,S607
+            ["git", "-C", str(path), "log", f"-{n}", "--pretty=format:%s"],
+            capture_output=True,
+            text=True,
+            check=False,
+        )
+    except FileNotFoundError:
+        return []
+    if result.returncode != 0:
+        return []
+    return [line for line in result.stdout.splitlines() if line.strip()]
