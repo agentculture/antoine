@@ -32,48 +32,70 @@ class _Context:
     has_culture_yaml: bool = False
 
 
+_COMPOSE_FILENAMES = ("docker-compose.yml", "docker-compose.yaml", "compose.yml", "compose.yaml")
+
+
+def _load_pyproject(path: Path) -> dict | None:
+    """Parse `path/pyproject.toml` or return None if absent.
+
+    Raises `SeerError(EXIT_ENV_ERROR)` if the file exists but is unreadable
+    (OS error, non-UTF8) or malformed (invalid TOML).
+    """
+    pyproject = path / "pyproject.toml"
+    if not pyproject.exists():
+        return None
+    try:
+        text = pyproject.read_text(encoding="utf-8")
+    except (OSError, UnicodeDecodeError) as e:
+        raise _pyproject_unreadable_error(pyproject, str(e)) from e
+    try:
+        return tomllib.loads(text)
+    except tomllib.TOMLDecodeError as e:
+        raise malformed_pyproject(pyproject, str(e)) from e
+
+
+def _load_package_json(path: Path) -> dict | None:
+    """Parse `path/package.json` or return None if absent / unreadable / malformed.
+
+    Soft-fails on any read/decode/parse error — Node tools handle missing or
+    bad manifests gracefully and we follow the same "fail-soft for optional
+    sources" pattern here.
+    """
+    package_json = path / "package.json"
+    if not package_json.exists():
+        return None
+    try:
+        return json.loads(package_json.read_text(encoding="utf-8"))
+    except (OSError, UnicodeDecodeError, json.JSONDecodeError):
+        return None
+
+
+def _detect_compose(path: Path) -> str | None:
+    """Return the first matching compose filename present at *path*, or None."""
+    for compose in _COMPOSE_FILENAMES:
+        if (path / compose).exists():
+            return compose
+    return None
+
+
 def _build_context(path: Path) -> _Context:
     """Walk *path* once and capture every signal the rule set needs."""
     ctx = _Context(path=path)
-
-    pyproject = path / "pyproject.toml"
-    if pyproject.exists():
-        try:
-            text = pyproject.read_text(encoding="utf-8")
-        except (OSError, UnicodeDecodeError) as e:
-            raise _pyproject_unreadable_error(pyproject, str(e)) from e
-        try:
-            ctx.pyproject = tomllib.loads(text)
-        except tomllib.TOMLDecodeError as e:
-            raise malformed_pyproject(pyproject, str(e)) from e
-
-    package_json = path / "package.json"
-    if package_json.exists():
-        try:
-            ctx.package_json = json.loads(package_json.read_text(encoding="utf-8"))
-        except (OSError, UnicodeDecodeError, json.JSONDecodeError):
-            # Treat unreadable / malformed package.json the same as absent —
-            # Node tools handle this gracefully; we don't need to fail the
-            # whole classify call.
-            ctx.package_json = None
+    ctx.pyproject = _load_pyproject(path)
+    ctx.package_json = _load_package_json(path)
 
     scripts_dir = path / "scripts"
     if scripts_dir.is_dir():
         ctx.bash_scripts = sorted(p for p in scripts_dir.iterdir() if p.suffix == ".sh")
 
-    if (path / "Dockerfile").exists():
-        ctx.has_dockerfile = True
-    for compose in ("docker-compose.yml", "docker-compose.yaml", "compose.yml", "compose.yaml"):
-        if (path / compose).exists():
-            ctx.has_compose = True
-            ctx.compose_filename = compose
-            break
+    ctx.has_dockerfile = (path / "Dockerfile").exists()
+    compose = _detect_compose(path)
+    if compose is not None:
+        ctx.has_compose = True
+        ctx.compose_filename = compose
 
-    if (path / "culture.yaml").exists():
-        ctx.has_culture_yaml = True
-
-    if (path / "tests").is_dir():
-        ctx.has_tests_dir = True
+    ctx.has_culture_yaml = (path / "culture.yaml").exists()
+    ctx.has_tests_dir = (path / "tests").is_dir()
 
     workflows_dir = path / ".github" / "workflows"
     if workflows_dir.is_dir():
