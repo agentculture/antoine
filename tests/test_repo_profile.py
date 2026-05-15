@@ -261,6 +261,39 @@ def test_profile_shallow_src_layout_excludes_match_root(tmp_path: Path) -> None:
     assert tree_names == {"demo"}
 
 
+def test_profile_shallow_build_test(tmp_path: Path) -> None:
+    """build_test extracts test_command, test_addopts, coverage_fail_under, python_requires."""
+    repo = tmp_path / "demo"
+    repo.mkdir()
+    (repo / "pyproject.toml").write_text("""
+[project]
+name = "demo"
+version = "0.1.0"
+requires-python = ">=3.11"
+
+[tool.pytest.ini_options]
+addopts = "-n auto --cov=seer"
+
+[tool.coverage.report]
+fail_under = 80
+""")
+    p = profile_shallow(repo)
+    bt = p["build_test"]
+    assert bt is not None
+    assert bt["test_command"] == "pytest"
+    assert bt["test_addopts"] == "-n auto --cov=seer"
+    assert bt["coverage_fail_under"] == 80
+    assert bt["python_requires"] == ">=3.11"
+
+
+def test_profile_shallow_build_test_no_pyproject(tmp_path: Path) -> None:
+    """build_test is None when no pyproject.toml is present."""
+    repo = tmp_path / "no-manifest"
+    (repo / ".claude" / "skills" / "x").mkdir(parents=True)
+    p = profile_shallow(repo)
+    assert p["build_test"] is None
+
+
 def test_profile_shallow_package_tree_nested(tmp_path: Path) -> None:
     """package_tree exposes top-level subpackages and modules to ~depth 2."""
     repo = tmp_path / "demo"

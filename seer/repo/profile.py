@@ -12,13 +12,19 @@ Missing optional sources degrade silently to empty fields.
 
 from __future__ import annotations
 
+import ast
+import re
 import subprocess  # noqa: S404  # nosec B404
+import tomllib
 from pathlib import Path
 
 import yaml
 
 from seer.repo.detect import resolve_name
 from seer.repo.manifest import read_pyproject
+
+_WORKFLOW_NAME_RE = re.compile(r"^name:\s*(.+?)\s*$", re.MULTILINE)
+_REMOTE_RE = re.compile(r"^(?:git@|https?://)([^:/]+)[:/](.+?)(?:\.git)?/?$")
 
 
 def profile_shallow(path: Path) -> dict[str, object]:
@@ -33,6 +39,12 @@ def profile_shallow(path: Path) -> dict[str, object]:
         m = read_pyproject(path)
         language = "python"
         manifest: str | None = "pyproject.toml"
+        try:
+            raw_pyproject: dict | None = tomllib.loads(
+                (path / "pyproject.toml").read_text(encoding="utf-8")
+            )
+        except (tomllib.TOMLDecodeError, OSError):
+            raw_pyproject = None
     else:
         m = {
             "name": resolve_name(path),
@@ -43,7 +55,8 @@ def profile_shallow(path: Path) -> dict[str, object]:
         }
         language = "unknown"
         manifest = None
-
+        raw_pyproject = None
+    package_tree = _package_tree(path)
     profile: dict[str, object] = {
         "path": str(path),
         "name": m["name"],
@@ -54,7 +67,12 @@ def profile_shallow(path: Path) -> dict[str, object]:
         "deps_runtime": m["deps_runtime"],
         "deps_dev": m["deps_dev"],
         "package_layout": _list_packages(path),
-        "package_tree": _package_tree(path),
+        "package_tree": package_tree,
+        "build_test": _build_test(raw_pyproject),
+        "ci_workflows": _ci_workflows(path),
+        "publish_target": _publish_target(path),
+        "git_remote": _git_remote(path),
+        "module_summaries": _module_docs(path, package_tree),
         "vendored_skills": _list_vendored_skills(path),
         "citations": _read_citations(path),
         "changelog_recent": _read_changelog(path, n=3),
@@ -299,6 +317,200 @@ def _read_culture_nick(path: Path) -> str:
     if not agents or not isinstance(agents[0], dict):
         return ""
     return str(agents[0].get("suffix") or agents[0].get("nick") or "")
+
+
+def _build_test(pyproject: dict | None) -> dict | None:
+    """Extract test/coverage/python metadata from a raw pyproject dict.
+
+    Returns a dict with some subset of ``test_command``, ``test_addopts``,
+    ``coverage_fail_under``, and ``python_requires``.  Keys whose value is
+    None are dropped.  Returns None when *pyproject* is None.
+    """
+    if pyproject is None:
+        return None
+    pytest_opts = (pyproject.get("tool") or {})
+    pytest_addopts = ((pytest_opts.get("pytest") or {}).get("ini_options") or {}).get("addopts")
+    coverage_fail = (
+        ((pytest_opts.get("coverage") or {}).get("report") or {}).get("fail_under")
+    )
+    python_requires = (pyproject.get("project") or {}).get("requires-python")
+    result: dict = {"test_command": "pytest"}
+    if pytest_addopts is not None:
+        result["test_addopts"] = pytest_addopts
+    if coverage_fail is not None:
+        result["coverage_fail_under"] = coverage_fail
+    if python_requires is not None:
+        result["python_requires"] = python_requires
+    return result
+
+
+def _ci_workflows(path: Path) -> list[dict[str, str]]:
+    """Scan ``.github/workflows/*.{yml,yaml}`` and return name + filename entries."""
+    workflows_dir = path / ".github" / "workflows"
+    if not workflows_dir.is_dir():
+        return []
+    out: list[dict[str, str]] = []
+    for wf_file in sorted(workflows_dir.iterdir()):
+        if wf_file.suffix not in {".yml", ".yaml"}:
+            continue
+        try:
+            text = wf_file.read_text(encoding="utf-8")
+        except OSError:
+            continue
+        m = _WORKFLOW_NAME_RE.search(text)
+        if m:
+            raw_name = m.group(1).strip()
+            # strip enclosing quotes
+            if (
+                len(raw_name) >= 2
+                and raw_name[0] in ('"', "'")
+                and raw_name[-1] == raw_name[0]
+            ):
+                raw_name = raw_name[1:-1]
+            name = raw_name
+        else:
+            name = ""
+        out.append({"file": wf_file.name, "name": name})
+    return out
+
+
+def _summarize_on_block(text: str) -> str:
+    """Coarse classifier for the ``on:`` block in a workflow file."""
+    # Find lines after "on:" until the next top-level key
+    on_block_re = re.compile(r"^on:\s*\n((?:[ \t]+.*\n?)*)", re.MULTILINE)
+    m = on_block_re.search(text)
+    if not m:
+        # on: might be inline like "on: [push]" or just a single word
+        inline_re = re.compile(r"^on:\s*(.+)$", re.MULTILINE)
+        im = inline_re.search(text)
+        if im:
+            val = im.group(1).strip().lower()
+            if "release" in val:
+                return "release"
+            if "workflow_dispatch" in val:
+                return "workflow_dispatch"
+            if "schedule" in val:
+                return "schedule"
+            if "pull_request" in val:
+                return "pull_request"
+            if "push" in val:
+                return "push: branches"
+        return "unknown"
+    block = m.group(0)
+    if "tags:" in block:
+        return "push: tags"
+    if "release" in block:
+        return "release"
+    if "workflow_dispatch" in block:
+        return "workflow_dispatch"
+    if "schedule" in block:
+        return "schedule"
+    if "pull_request" in block:
+        return "pull_request"
+    if "branches:" in block:
+        return "push: branches"
+    return "unknown"
+
+
+def _publish_target(path: Path) -> dict | None:
+    """Detect the first PyPI/GHCR publish workflow; return kind/workflow/trigger or None."""
+    workflows_dir = path / ".github" / "workflows"
+    if not workflows_dir.is_dir():
+        return None
+    for wf_file in sorted(workflows_dir.iterdir()):
+        if wf_file.suffix not in {".yml", ".yaml"}:
+            continue
+        try:
+            text = wf_file.read_text(encoding="utf-8")
+        except OSError:
+            continue
+        if "pypa/gh-action-pypi-publish" in text or "pypi.org" in text:
+            kind = "pypi"
+        elif "ghcr.io" in text:
+            kind = "ghcr"
+        else:
+            continue
+        return {
+            "kind": kind,
+            "workflow": wf_file.name,
+            "trigger": _summarize_on_block(text),
+        }
+    return None
+
+
+def _git_remote(path: Path) -> dict | None:
+    """Return parsed ``origin`` remote info from git, or None on failure."""
+    try:
+        result = subprocess.run(  # noqa: S603,S607  # nosec B603 B607
+            ["git", "remote", "get-url", "origin"],
+            cwd=path,
+            capture_output=True,
+            text=True,
+            check=False,
+            timeout=2,
+        )
+    except FileNotFoundError:
+        return None
+    except subprocess.TimeoutExpired:
+        return None
+    if result.returncode != 0:
+        return None
+    raw_url = result.stdout.strip()
+    m = _REMOTE_RE.match(raw_url)
+    if not m:
+        return {"url": raw_url, "ref": "origin"}
+    host = m.group(1)
+    path_part = m.group(2)
+    parts = path_part.split("/", 1)
+    owner = parts[0] if len(parts) >= 1 else ""
+    repo_name = parts[1] if len(parts) >= 2 else ""
+    return {"host": host, "owner": owner, "repo": repo_name, "url": raw_url, "ref": "origin"}
+
+
+def _collect_module_files(
+    node: dict, base_path: Path, pkg_path: Path
+) -> list[tuple[str, Path]]:
+    """Recursively collect (relative_path_str, abs_path) pairs from a package_tree node."""
+    results: list[tuple[str, Path]] = []
+    for mod in node.get("modules") or []:
+        rel = pkg_path / mod
+        abs_path = base_path / rel
+        results.append((str(rel), abs_path))
+    for sub in node.get("subpackages") or []:
+        sub_pkg_path = pkg_path / sub["name"]
+        results.extend(_collect_module_files(sub, base_path, sub_pkg_path))
+    return results
+
+
+def _module_docs(path: Path, package_tree: list[dict]) -> list[dict]:
+    """Return first-docstring-line summaries for modules in the package tree."""
+    out: list[dict] = []
+    for node in package_tree:
+        pkg_root = Path(node["name"])
+        # Check if this package lives under src/
+        candidate_src = path / "src" / node["name"]
+        candidate_root = path / node["name"]
+        if candidate_src.is_dir():
+            base_path = path / "src"
+            pkg_path = pkg_root
+        else:
+            base_path = path
+            pkg_path = pkg_root
+        for rel_str, abs_path in _collect_module_files(node, base_path, pkg_path):
+            try:
+                source = abs_path.read_text(encoding="utf-8")
+                tree = ast.parse(source)
+            except (SyntaxError, OSError, UnicodeDecodeError):
+                continue
+            docstring = ast.get_docstring(tree)
+            if not docstring:
+                continue
+            first_line = docstring.strip().splitlines()[0].strip()
+            if not first_line:
+                continue
+            out.append({"module": rel_str, "summary": first_line[:120]})
+    out.sort(key=lambda x: x["module"])
+    return out
 
 
 _DEEP_HEADINGS = ("## Project Status", "## Architecture")
