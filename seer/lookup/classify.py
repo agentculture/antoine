@@ -12,7 +12,7 @@ import tomllib
 from dataclasses import dataclass, field
 from pathlib import Path
 
-from seer.cli._errors import EXIT_USER_ERROR, SeerError
+from seer.cli._errors import EXIT_ENV_ERROR, EXIT_USER_ERROR, SeerError
 from seer.repo.errors import malformed_pyproject
 
 
@@ -39,7 +39,11 @@ def _build_context(path: Path) -> _Context:
     pyproject = path / "pyproject.toml"
     if pyproject.exists():
         try:
-            ctx.pyproject = tomllib.loads(pyproject.read_text(encoding="utf-8"))
+            text = pyproject.read_text(encoding="utf-8")
+        except (OSError, UnicodeDecodeError) as e:
+            raise _pyproject_unreadable_error(pyproject, str(e)) from e
+        try:
+            ctx.pyproject = tomllib.loads(text)
         except tomllib.TOMLDecodeError as e:
             raise malformed_pyproject(pyproject, str(e)) from e
 
@@ -47,9 +51,10 @@ def _build_context(path: Path) -> _Context:
     if package_json.exists():
         try:
             ctx.package_json = json.loads(package_json.read_text(encoding="utf-8"))
-        except json.JSONDecodeError:
-            # Treat malformed package.json the same as absent — Node tools handle
-            # this gracefully; we don't need to fail the whole classify call.
+        except (OSError, UnicodeDecodeError, json.JSONDecodeError):
+            # Treat unreadable / malformed package.json the same as absent —
+            # Node tools handle this gracefully; we don't need to fail the
+            # whole classify call.
             ctx.package_json = None
 
     scripts_dir = path / "scripts"
@@ -179,7 +184,9 @@ def _rule_packaged_pypi(ctx: _Context) -> dict[str, str] | None:
     for wf in ctx.workflow_files:
         try:
             text = wf.read_text(encoding="utf-8")
-        except OSError:
+        except (OSError, UnicodeDecodeError):
+            # Best-effort: skip unreadable / undecodable workflow files
+            # rather than aborting classification.
             continue
         if any(needle in text for needle in needles):
             return {
@@ -225,6 +232,16 @@ def _path_not_a_directory_error(p: Path) -> SeerError:
         message=f"classify expects a directory, got file: {p}",
         reason="classify operates on a repository root, not a single file.",
         remediation="pass the parent directory.",
+    )
+
+
+def _pyproject_unreadable_error(p: Path, detail: str) -> SeerError:
+    return SeerError(
+        code=EXIT_ENV_ERROR,
+        kind="env_error",
+        message=f"cannot read pyproject.toml at {p}",
+        reason=f"OS or decode error while reading the manifest: {detail}",
+        remediation=("check file permissions and confirm the file is valid UTF-8."),
     )
 
 

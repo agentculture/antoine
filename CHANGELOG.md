@@ -5,12 +5,16 @@ All notable changes to this project will be documented in this file.
 Format follows [Keep a Changelog](https://keepachangelog.com/). This project
 adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
-## [0.4.2] - 2026-05-16
+## [0.5.0] - 2026-05-16
 
 ### Added
 
 - seer classify verb: deterministic project-type tags with per-tag evidence, in one tool call. Tags: python / node / bash / cli / library / dockerized / tested / packaged-pypi / agentculture-sibling. Markdown by default; --json for structured. Spec: docs/superpowers/specs/2026-05-16-seer-classify-design.md
 - code-lookup skill: companion to repo-map, houses the classify wrapper + SKILL.md (frontmatter enumerates output fields + token-math + when-NOT-to-use, per the PR #13 / Qodo lesson)
+
+### Fixed
+
+- `seer.lookup.classify._build_context` now wraps `pyproject.toml` reads in a try/except for `OSError` and `UnicodeDecodeError`, mapping them to a structured `SeerError(EXIT_ENV_ERROR)` via the new `_pyproject_unreadable_error` factory. `package.json` reads now also handle `OSError` + `UnicodeDecodeError` (alongside the existing `JSONDecodeError`) as soft-skip, consistent with the "fail-soft for optional sources" pattern. `_rule_packaged_pypi` extends its workflow-file read guard from `OSError` only to `(OSError, UnicodeDecodeError)`. Without these guards, a non-UTF8 manifest or workflow file would escape the structured-error policy and surface as a generic "unexpected" exception.
 
 ## [0.4.1] - 2026-05-15
 

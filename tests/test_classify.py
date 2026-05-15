@@ -6,7 +6,7 @@ from pathlib import Path
 
 import pytest
 
-from seer.cli._errors import EXIT_USER_ERROR, SeerError
+from seer.cli._errors import EXIT_ENV_ERROR, EXIT_USER_ERROR, SeerError
 from seer.lookup.classify import classify
 
 
@@ -272,3 +272,48 @@ def test_classify_every_returned_tag_has_evidence(tmp_path: Path) -> None:
     for tag in result["tags"]:
         assert isinstance(tag.get("name"), str) and tag["name"], f"empty name in {tag}"
         assert isinstance(tag.get("evidence"), str) and tag["evidence"], f"empty evidence in {tag}"
+
+
+def test_classify_pyproject_non_utf8_raises_env_error(tmp_path: Path) -> None:
+    """A pyproject.toml with non-UTF8 bytes raises a structured env_error.
+
+    Without explicit UnicodeDecodeError handling, the dispatcher would wrap
+    this as a generic "unexpected" error — the contract is a clean SeerError.
+    """
+    repo = tmp_path / "badpy"
+    repo.mkdir()
+    # 0xff 0xfe is not valid UTF-8; will trigger UnicodeDecodeError on read.
+    (repo / "pyproject.toml").write_bytes(b'\xff\xfe[project]\nname = "x"\n')
+    with pytest.raises(SeerError) as exc:
+        classify(repo)
+    assert exc.value.code == EXIT_ENV_ERROR
+    assert "pyproject.toml" in exc.value.message
+
+
+def test_classify_package_json_non_utf8_silently_skipped(tmp_path: Path) -> None:
+    """A package.json with non-UTF8 bytes is treated as absent — no crash, no node tag."""
+    repo = tmp_path / "badnode"
+    repo.mkdir()
+    (repo / "package.json").write_bytes(b'\xff\xfe{"name": "x"}')
+    # Should not raise. Node tag must NOT fire when the file is unreadable.
+    result = classify(repo)
+    tag_names = [t["name"] for t in result["tags"]]
+    assert "node" not in tag_names
+
+
+def test_classify_workflow_non_utf8_skipped(tmp_path: Path) -> None:
+    """A workflow YAML with non-UTF8 bytes is skipped, not crashed on."""
+    repo = tmp_path / "badwf"
+    repo.mkdir()
+    workflows = repo / ".github" / "workflows"
+    workflows.mkdir(parents=True)
+    # First workflow is undecodable; second one is the real pypi marker.
+    (workflows / "broken.yml").write_bytes(b"\xff\xfe...")
+    (workflows / "publish.yml").write_text(
+        "uses: pypa/gh-action-pypi-publish@v1\n", encoding="utf-8"
+    )
+    # Should not raise on the broken file; should still fire packaged-pypi
+    # from the readable one.
+    result = classify(repo)
+    tag_names = [t["name"] for t in result["tags"]]
+    assert "packaged-pypi" in tag_names
