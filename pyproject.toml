@@ -1,6 +1,6 @@
 [project]
 name = "seer-cli"
-version = "0.3.0"
+version = "0.3.1"
 description = "seer — codebase lookup and indexing for agent skills (greenfield AgentCulture sibling)."
 readme = "README.md"
 license = "MIT"

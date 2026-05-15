@@ -5,6 +5,13 @@ All notable changes to this project will be documented in this file.
 Format follows [Keep a Changelog](https://keepachangelog.com/). This project
 adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.3.1] - 2026-05-15
+
+### Added
+
+- scripts-eval: `summarize.py` — accumulator that walks `results/<run_id>/arm-A/` and `arm-C/`, groups paired cells by `(repo_id, question_id)`, and rewrites two marker-bracketed regions of a tracked evidence markdown file: a per-set progress table (`<!-- runstate:... -->`) and per-set verdict tables with judge reasoning (`<!-- evidence:... -->`). Idempotent on replay so the operator runs it at the end of every session without thinking about state.
+- docs/eval-rounds/2026-05-15-round-01.md — single tracked file that serves as both the runbook (preflight + per-arm procedure + paste templates) and the evidence accumulator (auto-updated by `summarize.py`). Raw per-cell JSONs stay gitignored under `results/2026-05-15-round-01/`; this file is the committed evidence for round 01.
+
 ## [0.3.0] - 2026-05-15
 
 ### Changed
