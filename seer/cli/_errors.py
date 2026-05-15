@@ -48,6 +48,7 @@ class SeerError(Exception):
         super().__init__(self.message)
 
     def to_dict(self) -> dict[str, object]:
+        """Serialise to a plain dict suitable for JSON output."""
         out: dict[str, object] = {"code": self.code, "message": self.message}
         if self.kind:
             out["kind"] = self.kind

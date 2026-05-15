@@ -7,6 +7,8 @@ status line so a probing agent or human gets a clear signal rather than a
 misleading response.
 """
 
+# pylint: disable=duplicate-code  # intentional: three stub verbs share the same structure
+
 from __future__ import annotations
 
 import argparse
@@ -31,6 +33,7 @@ def _json_payload() -> dict[str, object]:
 
 
 def cmd_learn(args: argparse.Namespace) -> int:
+    """Handle the ``learn`` verb — print status and return 0."""
     json_mode = bool(getattr(args, "json", False))
     if json_mode:
         emit_result(_json_payload(), json_mode=True)
@@ -39,7 +42,8 @@ def cmd_learn(args: argparse.Namespace) -> int:
     return 0
 
 
-def register(sub: argparse._SubParsersAction) -> None:
+def register(sub: argparse._SubParsersAction) -> None:  # pylint: disable=duplicate-code
+    """Register the ``learn`` sub-command on *sub*."""
     p = sub.add_parser("learn", help="Print seer's self-teaching status line.")
     p.add_argument("--json", action="store_true", help="Emit structured JSON.")
     p.set_defaults(func=cmd_learn)

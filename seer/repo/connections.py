@@ -49,7 +49,7 @@ def _coerce_depth(depth: int | str | None) -> int | str:
     return n
 
 
-def _build_index(
+def _build_index(  # pylint: disable=duplicate-code
     roots: list[Path],
     additional_markers: list[str] | None,
     skip_dirs: list[str] | None,

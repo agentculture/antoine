@@ -69,9 +69,7 @@ def test_emit_error_text_with_reason_and_remediation() -> None:
         json_mode=False,
         stream=buf,
     )
-    assert buf.getvalue() == (
-        "error: bad\nreason: no manifest found\nhint: fix it\n"
-    )
+    assert buf.getvalue() == ("error: bad\nreason: no manifest found\nhint: fix it\n")
 
 
 def test_emit_error_text_with_reason_only() -> None:
