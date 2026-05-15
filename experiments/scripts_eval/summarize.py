@@ -19,7 +19,6 @@ at the end of every session without thinking about state.
 from __future__ import annotations
 
 import argparse
-import re
 from collections import defaultdict
 from pathlib import Path
 
@@ -185,18 +184,56 @@ def render_evidence_sections(state: list[dict]) -> str:
 # ---------------------------------------------------------------------------
 
 
+_ALL_MARKERS = (RUNSTATE_START, RUNSTATE_END, EVIDENCE_START, EVIDENCE_END)
+
+
+def _escape_markers_in_payload(payload: str) -> str:
+    """Disarm any literal section-marker strings that happen to appear
+    inside *payload*.
+
+    Without this, a judge's reasoning that verbatim contains
+    ``<!-- evidence:end -->`` would, after one update, leave that
+    literal in the rendered table. The next ``update_evidence_file``
+    call would then find that inner ``<!-- evidence:end -->`` first
+    (before the proper one) and slice the wrong region, corrupting
+    the file and breaking idempotence.
+
+    The escape rewrites ``<!--`` to ``<\\!--`` only inside the literal
+    marker strings — markdown renderers display the backslash-escaped
+    form identically to the original, and ``str.find`` no longer
+    matches it as a marker on subsequent passes.
+    """
+    out = payload
+    for marker in _ALL_MARKERS:
+        if marker in out:
+            out = out.replace(marker, marker.replace("<!--", "<\\!--"))
+    return out
+
+
 def _replace_between(text: str, start_marker: str, end_marker: str, payload: str) -> str:
-    pattern = re.compile(
-        re.escape(start_marker) + r".*?" + re.escape(end_marker),
-        re.DOTALL,
+    """Replace the content between *start_marker* and *end_marker* in *text*.
+
+    Uses index-based slicing on the *original* text instead of a regex,
+    so the inserted payload can contain anything — including the literal
+    marker strings in a judge's reasoning — without risk of the next
+    call truncating at an inner occurrence and corrupting the file.
+
+    The replacement always targets *the first* start_marker and *the
+    first* end_marker that follows it. Subsequent occurrences anywhere
+    in *text* (e.g., inside the payload from a prior call) are left
+    alone.
+    """
+    start_idx = text.find(start_marker)
+    if start_idx == -1:
+        raise ValueError(f"start marker not found in evidence file: {start_marker!r}")
+    end_idx = text.find(end_marker, start_idx + len(start_marker))
+    if end_idx == -1:
+        raise ValueError(f"end marker not found after start: {end_marker!r}")
+    return (
+        text[:start_idx]
+        + f"{start_marker}\n\n{payload}\n{end_marker}"
+        + text[end_idx + len(end_marker) :]
     )
-    replacement = f"{start_marker}\n\n{payload}\n{end_marker}"
-    new_text, n = pattern.subn(replacement, text)
-    if n == 0:
-        raise ValueError(
-            f"marker pair not found in evidence file: " f"{start_marker!r} / {end_marker!r}"
-        )
-    return new_text
 
 
 def update_evidence_file(run_id: str, path: Path) -> None:
@@ -204,8 +241,8 @@ def update_evidence_file(run_id: str, path: Path) -> None:
     if not path.exists():
         raise ValueError(f"evidence file not found: {path}")
     state = collect_run_state(run_id)
-    runstate = render_runstate_table(state)
-    evidence = render_evidence_sections(state)
+    runstate = _escape_markers_in_payload(render_runstate_table(state))
+    evidence = _escape_markers_in_payload(render_evidence_sections(state))
     text = path.read_text(encoding="utf-8")
     text = _replace_between(text, RUNSTATE_START, RUNSTATE_END, runstate)
     text = _replace_between(text, EVIDENCE_START, EVIDENCE_END, evidence)

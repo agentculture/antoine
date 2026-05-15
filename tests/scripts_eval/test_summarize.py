@@ -262,3 +262,71 @@ class TestUpdateFile:
         bad.write_text("# No markers here\n", encoding="utf-8")
         with pytest.raises(ValueError, match="marker"):
             summarize.update_evidence_file("r1", bad)
+
+    def test_payload_containing_end_marker_text_does_not_corrupt(self, monkeypatch, tmp_path):
+        """Adversarial payload — judge reasoning that happens to quote
+        the literal `<!-- evidence:end -->` string. A regex-based
+        ``.*?end_marker`` would terminate at the inner occurrence on the
+        next summarize call and corrupt the file. The escape step
+        disarms the marker (``<!--`` → ``<\\!--``) so subsequent passes
+        see only the proper markers."""
+        monkeypatch.setattr(_io, "REPO_ROOT", tmp_path)
+        rd = _io.run_dir("r1")
+        rd.mkdir(parents=True)
+        nasty_reasoning = (
+            "C names the markers verbatim: <!-- evidence:end --> "
+            "and <!-- runstate:end --> — pathological but legal."
+        )
+        _seed_cell(
+            rd,
+            arm="A",
+            repo_id="agtag",
+            question_id="q1",
+            trial=1,
+            judge_block=_judge_block("C", margin="clear", reasoning=nasty_reasoning),
+        )
+        _seed_cell(
+            rd,
+            arm="C",
+            repo_id="agtag",
+            question_id="q1",
+            trial=1,
+            judge_block=_judge_block("C", margin="clear", reasoning=nasty_reasoning),
+        )
+        path = tmp_path / "EVIDENCE.md"
+        path.write_text(_TEMPLATE, encoding="utf-8")
+
+        # First call: payload lands between markers; literal markers
+        # inside the reasoning are escaped.
+        summarize.update_evidence_file("r1", path)
+        first = path.read_text(encoding="utf-8")
+        assert first.startswith("# Round-1\n")
+        assert "Footer that should be untouched." in first
+        # Escaped form of the contaminating markers landed in the table.
+        assert "<\\!-- evidence:end -->" in first
+        assert "<\\!-- runstate:end -->" in first
+        # Proper marker pairs still each appear exactly once.
+        assert first.count("<!-- runstate:start -->") == 1
+        assert first.count("<!-- runstate:end -->") == 1
+        assert first.count("<!-- evidence:start -->") == 1
+        assert first.count("<!-- evidence:end -->") == 1
+        # Second call must round-trip cleanly — no growth, no slice drift.
+        summarize.update_evidence_file("r1", path)
+        second = path.read_text(encoding="utf-8")
+        assert second == first
+        assert "Footer that should be untouched." in second
+
+    def test_end_marker_before_start_marker_raises(self, monkeypatch, tmp_path):
+        """If the source file accidentally inverts the order, the slice
+        cannot proceed — find_end_after_start returns -1."""
+        monkeypatch.setattr(_io, "REPO_ROOT", tmp_path)
+        _io.run_dir("r1").mkdir(parents=True)
+        inverted = (
+            "# Round-1\n\n"
+            "<!-- runstate:end -->\n(content)\n<!-- runstate:start -->\n\n"
+            "<!-- evidence:start -->\n(c)\n<!-- evidence:end -->\n"
+        )
+        path = tmp_path / "EVIDENCE.md"
+        path.write_text(inverted, encoding="utf-8")
+        with pytest.raises(ValueError, match="end marker not found"):
+            summarize.update_evidence_file("r1", path)

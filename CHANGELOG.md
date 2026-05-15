@@ -14,6 +14,11 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 ### Changed
 
 - docs/eval-rounds/2026-05-15-round-01.md trimmed to round-specific bits only (run metadata, preflight, paste templates, evidence accumulator). The procedure now lives in the `eval` skill — single source of truth, picked up automatically when an operator session triggers the skill.
+- scripts-eval: `eval` skill replaces the `python3 -c "import json; …"` prompt-extraction step with `jq -j '.prompt_text'` — no Python required, and `-j` joins without a trailing newline so the dispatched bytes match what `prepare` emitted. Aligns with the project's `uv run`-managed Python and avoids ad-hoc stdlib invocations in operator runbooks.
+
+### Fixed
+
+- scripts-eval: `summarize._replace_between` switched from a `re.DOTALL` regex pattern to index-based slicing on the original text. A judge's reasoning that verbatim quoted a section-end marker (e.g., `<!-- evidence:end -->`) could previously terminate the regex at the inner occurrence on a subsequent summarize call, corrupting the file and breaking idempotence. The render step now also disarms any literal marker strings in the payload by rewriting `<!--` to `<\!--` inside the matched marker text — markdown renders identically, and `str.find` no longer matches the escaped form as a marker on later passes.
 
 ## [0.3.1] - 2026-05-15
 

@@ -161,12 +161,12 @@ If fewer than 3, stop — arm A must complete first.
        --seed 0 > /tmp/judge-<n>.json
    ```
 
-2. Materialise the prompt to a text file for dispatch:
+2. Materialise the prompt to a text file for dispatch (`jq -j`
+   joins without adding a trailing newline, so the bytes match what
+   `prepare` emitted):
 
    ```bash
-   python3 -c "import json; \
-   print(json.load(open('/tmp/judge-<n>.json'))['prompt_text'], end='')" \
-       > /tmp/judge-<n>.txt
+   jq -j '.prompt_text' /tmp/judge-<n>.json > /tmp/judge-<n>.txt
    ```
 
 3. Dispatch the judge subagent. **The description prefix is
