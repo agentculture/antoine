@@ -71,18 +71,25 @@ _PKG_EXCLUDE = {"tests", "docs", "scripts", "__pycache__"}
 _INIT_PY = "__init__.py"
 
 
+def _is_candidate_pkg_dir(child: Path) -> bool:
+    """True if *child* is a non-hidden, non-excluded directory worth scanning."""
+    return child.is_dir() and not child.name.startswith(".") and child.name not in _PKG_EXCLUDE
+
+
 def _list_packages(path: Path) -> list[str]:
     """Return one-level Python packages at the repo root or under ``src/``."""
     out: list[str] = []
     for child in sorted(path.iterdir()):
-        if not child.is_dir() or child.name.startswith(".") or child.name in _PKG_EXCLUDE:
+        if not _is_candidate_pkg_dir(child):
             continue
         if (child / _INIT_PY).exists():
             out.append(child.name + "/")
     src = path / "src"
     if src.is_dir():
         for child in sorted(src.iterdir()):
-            if child.is_dir() and (child / _INIT_PY).exists():
+            if not _is_candidate_pkg_dir(child):
+                continue
+            if (child / _INIT_PY).exists():
                 out.append(f"src/{child.name}/")
     return out
 
@@ -114,14 +121,16 @@ def _package_tree(path: Path, *, max_depth: int = 2) -> list[dict[str, object]]:
     """
     out: list[dict[str, object]] = []
     for child in sorted(path.iterdir()):
-        if not child.is_dir() or child.name.startswith(".") or child.name in _PKG_EXCLUDE:
+        if not _is_candidate_pkg_dir(child):
             continue
         if (child / _INIT_PY).exists():
             out.append(_package_node(child, remaining_depth=max_depth))
     src = path / "src"
     if src.is_dir():
         for child in sorted(src.iterdir()):
-            if child.is_dir() and (child / _INIT_PY).exists():
+            if not _is_candidate_pkg_dir(child):
+                continue
+            if (child / _INIT_PY).exists():
                 out.append(_package_node(child, remaining_depth=max_depth))
     return out
 

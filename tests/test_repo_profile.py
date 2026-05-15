@@ -234,6 +234,33 @@ def test_profile_shallow_skill_sources_preserves_inline_backtick_spans(
     assert s["version"] == "adapted"
 
 
+def test_profile_shallow_src_layout_excludes_match_root(tmp_path: Path) -> None:
+    """``src/`` scan honors the same dot-dir + ``_PKG_EXCLUDE`` filter as the root scan.
+
+    Without this the src-layout exclude rules silently diverged from the root
+    rules and ``tests/`` / dot-directories could leak into ``package_layout``
+    and ``package_tree``.
+    """
+    repo = tmp_path / "demo"
+    repo.mkdir()
+    (repo / "pyproject.toml").write_text('[project]\nname = "demo"\n')
+    src = repo / "src"
+    src.mkdir()
+    # Legitimate top-level package — should appear.
+    (src / "demo").mkdir()
+    (src / "demo" / "__init__.py").write_text("")
+    # Excluded dir name — should NOT appear even though it has __init__.py.
+    (src / "tests").mkdir()
+    (src / "tests" / "__init__.py").write_text("")
+    # Dot-dir — should NOT appear.
+    (src / ".hidden").mkdir()
+    (src / ".hidden" / "__init__.py").write_text("")
+    p = profile_shallow(repo)
+    assert p["package_layout"] == ["src/demo/"]
+    tree_names = {node["name"] for node in p["package_tree"]}
+    assert tree_names == {"demo"}
+
+
 def test_profile_shallow_package_tree_nested(tmp_path: Path) -> None:
     """package_tree exposes top-level subpackages and modules to ~depth 2."""
     repo = tmp_path / "demo"
