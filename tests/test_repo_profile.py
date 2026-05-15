@@ -397,6 +397,32 @@ def test_profile_shallow_git_remote_https(tmp_path: Path) -> None:
     assert gr["repo"] == "agtag"
 
 
+def test_profile_shallow_module_summaries(tmp_path: Path) -> None:
+    """module_summaries returns sorted list of modules with first docstring line."""
+    repo = tmp_path / "demo"
+    repo.mkdir()
+    (repo / "pyproject.toml").write_text('[project]\nname = "demo"\n')
+    pkg = repo / "pkg"
+    pkg.mkdir()
+    (pkg / "__init__.py").write_text('"""Package init."""\n')
+    (pkg / "cli.py").write_text('"""Command-line entry point."""\n\ndef main():\n    pass\n')
+    (pkg / "empty.py").write_text("# no docstring\ndef helper(): pass\n")
+    p = profile_shallow(repo)
+    ms = p["module_summaries"]
+    assert isinstance(ms, list)
+    assert len(ms) == 2
+    module_names = [e["module"] for e in ms]
+    assert "pkg/__init__.py" in module_names
+    assert "pkg/cli.py" in module_names
+    assert "pkg/empty.py" not in module_names
+    init_entry = next(e for e in ms if e["module"] == "pkg/__init__.py")
+    assert init_entry["summary"] == "Package init."
+    cli_entry = next(e for e in ms if e["module"] == "pkg/cli.py")
+    assert cli_entry["summary"] == "Command-line entry point."
+    # Sorted by module path
+    assert ms == sorted(ms, key=lambda x: x["module"])
+
+
 def test_profile_shallow_git_remote_no_git(tmp_path: Path) -> None:
     """git_remote is None when no .git directory exists."""
     repo = tmp_path / "no-git"
