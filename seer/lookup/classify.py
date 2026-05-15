@@ -7,10 +7,13 @@ functions of a `_Context` snapshot — one filesystem walk per call.
 
 from __future__ import annotations
 
+import json
+import tomllib
 from dataclasses import dataclass, field
 from pathlib import Path
 
 from seer.cli._errors import EXIT_USER_ERROR, SeerError
+from seer.repo.errors import malformed_pyproject
 
 
 @dataclass
@@ -31,11 +34,57 @@ class _Context:
 
 def _build_context(path: Path) -> _Context:
     """Walk *path* once and capture every signal the rule set needs."""
-    return _Context(path=path)
+    ctx = _Context(path=path)
+
+    pyproject = path / "pyproject.toml"
+    if pyproject.exists():
+        try:
+            ctx.pyproject = tomllib.loads(pyproject.read_text(encoding="utf-8"))
+        except tomllib.TOMLDecodeError as e:
+            raise malformed_pyproject(pyproject, str(e)) from e
+
+    package_json = path / "package.json"
+    if package_json.exists():
+        try:
+            ctx.package_json = json.loads(package_json.read_text(encoding="utf-8"))
+        except json.JSONDecodeError:
+            # Treat malformed package.json the same as absent — Node tools handle
+            # this gracefully; we don't need to fail the whole classify call.
+            ctx.package_json = None
+
+    scripts_dir = path / "scripts"
+    if scripts_dir.is_dir():
+        ctx.bash_scripts = sorted(p for p in scripts_dir.iterdir() if p.suffix == ".sh")
+
+    return ctx
 
 
-# Per-tag rules will be added in Tasks 3-6. Empty list for now.
-_RULES: list = []
+def _rule_python(ctx: _Context) -> dict[str, str] | None:
+    if ctx.pyproject is None:
+        return None
+    return {"name": "python", "evidence": "pyproject.toml present"}
+
+
+def _rule_node(ctx: _Context) -> dict[str, str] | None:
+    if ctx.package_json is None:
+        return None
+    return {"name": "node", "evidence": "package.json present"}
+
+
+def _rule_bash(ctx: _Context) -> dict[str, str] | None:
+    if ctx.pyproject is not None or ctx.package_json is not None:
+        return None
+    if not ctx.bash_scripts:
+        return None
+    n = len(ctx.bash_scripts)
+    file_word = "file" if n == 1 else "files"
+    return {
+        "name": "bash",
+        "evidence": f"scripts/ contains {n} .sh {file_word}; no Python/Node manifest",
+    }
+
+
+_RULES = [_rule_python, _rule_node, _rule_bash]
 
 
 def _path_not_found_error(p: Path) -> SeerError:
