@@ -163,3 +163,36 @@ def test_classify_library_without_scripts_no_cli_tag(tmp_path: Path) -> None:
     tag_names = [t["name"] for t in result["tags"]]
     assert "library" in tag_names
     assert "cli" not in tag_names
+
+
+def test_classify_dockerized_from_dockerfile(tmp_path: Path) -> None:
+    repo = tmp_path / "docked"
+    repo.mkdir()
+    (repo / "Dockerfile").write_text("FROM python:3.12\n")
+    result = classify(repo)
+    tag_names = [t["name"] for t in result["tags"]]
+    assert "dockerized" in tag_names
+    tag = next(t for t in result["tags"] if t["name"] == "dockerized")
+    assert tag["evidence"] == "Dockerfile present"
+
+
+def test_classify_dockerized_from_compose_only(tmp_path: Path) -> None:
+    repo = tmp_path / "composed"
+    repo.mkdir()
+    (repo / "docker-compose.yml").write_text("version: '3'\n")
+    result = classify(repo)
+    tag_names = [t["name"] for t in result["tags"]]
+    assert "dockerized" in tag_names
+    tag = next(t for t in result["tags"] if t["name"] == "dockerized")
+    assert "docker-compose.yml" in tag["evidence"]
+
+
+def test_classify_agentculture_sibling(tmp_path: Path) -> None:
+    repo = tmp_path / "sib"
+    repo.mkdir()
+    (repo / "culture.yaml").write_text("agents:\n  - suffix: sib\n")
+    result = classify(repo)
+    tag_names = [t["name"] for t in result["tags"]]
+    assert "agentculture-sibling" in tag_names
+    tag = next(t for t in result["tags"] if t["name"] == "agentculture-sibling")
+    assert tag["evidence"] == "culture.yaml present"

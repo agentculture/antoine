@@ -56,6 +56,17 @@ def _build_context(path: Path) -> _Context:
     if scripts_dir.is_dir():
         ctx.bash_scripts = sorted(p for p in scripts_dir.iterdir() if p.suffix == ".sh")
 
+    if (path / "Dockerfile").exists():
+        ctx.has_dockerfile = True
+    for compose in ("docker-compose.yml", "docker-compose.yaml", "compose.yml", "compose.yaml"):
+        if (path / compose).exists():
+            ctx.has_compose = True
+            ctx.compose_filename = compose
+            break
+
+    if (path / "culture.yaml").exists():
+        ctx.has_culture_yaml = True
+
     return ctx
 
 
@@ -122,7 +133,29 @@ def _rule_library(ctx: _Context) -> dict[str, str] | None:
     return None
 
 
-_RULES = [_rule_python, _rule_node, _rule_bash, _rule_cli, _rule_library]
+def _rule_dockerized(ctx: _Context) -> dict[str, str] | None:
+    if ctx.has_dockerfile:
+        return {"name": "dockerized", "evidence": "Dockerfile present"}
+    if ctx.has_compose and ctx.compose_filename:
+        return {"name": "dockerized", "evidence": f"{ctx.compose_filename} present"}
+    return None
+
+
+def _rule_agentculture_sibling(ctx: _Context) -> dict[str, str] | None:
+    if ctx.has_culture_yaml:
+        return {"name": "agentculture-sibling", "evidence": "culture.yaml present"}
+    return None
+
+
+_RULES = [
+    _rule_python,
+    _rule_node,
+    _rule_bash,
+    _rule_cli,
+    _rule_library,
+    _rule_dockerized,
+    _rule_agentculture_sibling,
+]
 
 
 def _path_not_found_error(p: Path) -> SeerError:
