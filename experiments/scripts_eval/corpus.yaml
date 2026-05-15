@@ -67,6 +67,15 @@ questions:
         - pyproject.toml
         - "pyyaml"
         - "culture.yaml"
+      citation-cli:
+        - "cite, don't import"
+        - "packages/"
+        - "Quote / Paraphrase / Synthesize"
+        - "cite add"
+        - "cite check"
+        - "packages/python"
+        - "packages/npm"
+        - "consumers are expected to diverge"
 
   - id: q-connections-1hop
     type: connections
@@ -110,6 +119,15 @@ questions:
         - "version-bump"
         - "communicate"
         - "culture.yaml"
+      citation-cli:
+        - "packages/python"
+        - "packages/npm"
+        - "uv tool install citation-cli"
+        - "npm install -g citation-cli"
+        - "pyproject.toml"
+        - "package.json"
+        - "culture.dev/citation-cli"
+        - "assimilai"
 
   - id: q-graph-workspace
     type: graph
@@ -162,6 +180,15 @@ questions:
         - "issue fetch"
         - "issue reply"
         - "agtag/nick.py"
+      citation-cli:
+        - "packages/python/src/citation_cli/cli.py"
+        - "packages/python/src/citation_cli/core.py"
+        - "packages/npm/src/cli.mjs"
+        - "packages/npm/src/core.mjs"
+        - "cite add"
+        - "cite check"
+        - "cite migrate"
+        - "sha256"
 
   - id: q-transfer-cli
     type: transfer
@@ -204,6 +231,15 @@ questions:
         - "_ArgumentParser"
         - "agtag/cli/__init__.py"
         - "uv sync"
+      citation-cli:
+        - "[project.scripts]"
+        - "citation_cli.cli:main"
+        - pyproject.toml
+        - hatchling
+        - "cite add"
+        - "cite check"
+        - "subparsers"
+        - "uv tool install citation-cli"
 
   - id: q-transfer-quality
     type: transfer
@@ -246,3 +282,12 @@ questions:
         - "pytest-cov"
         - "version-check"
         - "markdownlint-cli2"
+      citation-cli:
+        - "publish-pypi.yml"
+        - "publish-npm.yml"
+        - "site-check.yml"
+        - "uv run pytest tests/ -v"
+        - "TestPyPI"
+        - "trusted-publishing"
+        - "node --test"
+        - "docs.yml"
