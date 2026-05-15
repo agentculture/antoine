@@ -67,6 +67,15 @@ def _build_context(path: Path) -> _Context:
     if (path / "culture.yaml").exists():
         ctx.has_culture_yaml = True
 
+    if (path / "tests").is_dir():
+        ctx.has_tests_dir = True
+
+    workflows_dir = path / ".github" / "workflows"
+    if workflows_dir.is_dir():
+        ctx.workflow_files = sorted(
+            p for p in workflows_dir.iterdir() if p.suffix in (".yml", ".yaml")
+        )
+
     return ctx
 
 
@@ -141,6 +150,45 @@ def _rule_dockerized(ctx: _Context) -> dict[str, str] | None:
     return None
 
 
+def _rule_tested(ctx: _Context) -> dict[str, str] | None:
+    if not ctx.has_tests_dir:
+        return None
+    # Python path: pytest in [dependency-groups] dev
+    if ctx.pyproject is not None:
+        dev_deps = (ctx.pyproject.get("dependency-groups", {}) or {}).get("dev", []) or []
+        # Strip version spec: pytest>=8.0 -> pytest; pytest==8.1 -> pytest; etc.
+        dep_names = {d.split(">=")[0].split("==")[0].split("~=")[0].strip() for d in dev_deps}
+        if "pytest" in dep_names:
+            return {
+                "name": "tested",
+                "evidence": "tests/ exists; pytest in dependency-groups.dev",
+            }
+    # Node path: scripts.test defined
+    if ctx.package_json is not None:
+        scripts = ctx.package_json.get("scripts", {}) or {}
+        if scripts.get("test"):
+            return {
+                "name": "tested",
+                "evidence": f"tests/ exists; package.json scripts.test = {scripts['test']!r}",
+            }
+    return None
+
+
+def _rule_packaged_pypi(ctx: _Context) -> dict[str, str] | None:
+    needles = ("pypi.org", "pypa/gh-action-pypi-publish")
+    for wf in ctx.workflow_files:
+        try:
+            text = wf.read_text(encoding="utf-8")
+        except OSError:
+            continue
+        if any(needle in text for needle in needles):
+            return {
+                "name": "packaged-pypi",
+                "evidence": f".github/workflows/{wf.name} uploads to pypi.org",
+            }
+    return None
+
+
 def _rule_agentculture_sibling(ctx: _Context) -> dict[str, str] | None:
     if ctx.has_culture_yaml:
         return {"name": "agentculture-sibling", "evidence": "culture.yaml present"}
@@ -154,6 +202,8 @@ _RULES = [
     _rule_cli,
     _rule_library,
     _rule_dockerized,
+    _rule_tested,
+    _rule_packaged_pypi,
     _rule_agentculture_sibling,
 ]
 

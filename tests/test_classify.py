@@ -196,3 +196,79 @@ def test_classify_agentculture_sibling(tmp_path: Path) -> None:
     assert "agentculture-sibling" in tag_names
     tag = next(t for t in result["tags"] if t["name"] == "agentculture-sibling")
     assert tag["evidence"] == "culture.yaml present"
+
+
+def test_classify_tested_python_pytest_in_dev(tmp_path: Path) -> None:
+    repo = tmp_path / "tpy"
+    repo.mkdir()
+    (repo / "pyproject.toml").write_text(
+        '[project]\nname = "tpy"\n' '[dependency-groups]\ndev = ["pytest>=8.0"]\n'
+    )
+    (repo / "tests").mkdir()
+    result = classify(repo)
+    tag_names = [t["name"] for t in result["tags"]]
+    assert "tested" in tag_names
+    tag = next(t for t in result["tags"] if t["name"] == "tested")
+    assert "tests/" in tag["evidence"]
+    assert "pytest" in tag["evidence"]
+
+
+def test_classify_not_tested_when_pytest_missing(tmp_path: Path) -> None:
+    repo = tmp_path / "tno"
+    repo.mkdir()
+    (repo / "pyproject.toml").write_text('[project]\nname = "tno"\n')
+    (repo / "tests").mkdir()  # dir exists but pytest not in deps
+    result = classify(repo)
+    tag_names = [t["name"] for t in result["tags"]]
+    assert "tested" not in tag_names
+
+
+def test_classify_tested_node_with_test_script(tmp_path: Path) -> None:
+    repo = tmp_path / "tnode"
+    repo.mkdir()
+    (repo / "package.json").write_text('{"name": "tnode", "scripts": {"test": "jest"}}')
+    (repo / "tests").mkdir()
+    result = classify(repo)
+    tag_names = [t["name"] for t in result["tags"]]
+    assert "tested" in tag_names
+    tag = next(t for t in result["tags"] if t["name"] == "tested")
+    assert "test" in tag["evidence"]
+
+
+def test_classify_packaged_pypi_from_workflow(tmp_path: Path) -> None:
+    repo = tmp_path / "pkg"
+    repo.mkdir()
+    workflows = repo / ".github" / "workflows"
+    workflows.mkdir(parents=True)
+    (workflows / "publish.yml").write_text(
+        "on: push\njobs:\n  pub:\n    steps:\n      - uses: pypa/gh-action-pypi-publish@v1\n"
+    )
+    result = classify(repo)
+    tag_names = [t["name"] for t in result["tags"]]
+    assert "packaged-pypi" in tag_names
+    tag = next(t for t in result["tags"] if t["name"] == "packaged-pypi")
+    assert "publish.yml" in tag["evidence"]
+
+
+def test_classify_every_returned_tag_has_evidence(tmp_path: Path) -> None:
+    """No rule may emit an empty evidence string — contract invariant."""
+    repo = tmp_path / "full"
+    repo.mkdir()
+    (repo / "pyproject.toml").write_text(
+        '[project]\nname = "full"\n[project.scripts]\nfull = "full.cli:main"\n'
+        '[dependency-groups]\ndev = ["pytest"]\n'
+    )
+    pkg = repo / "full"
+    pkg.mkdir()
+    (pkg / "__init__.py").write_text("")
+    (repo / "Dockerfile").write_text("FROM python:3.12\n")
+    (repo / "tests").mkdir()
+    (repo / "culture.yaml").write_text("agents:\n  - suffix: full\n")
+    workflows = repo / ".github" / "workflows"
+    workflows.mkdir(parents=True)
+    (workflows / "publish.yml").write_text("uses: pypa/gh-action-pypi-publish@v1\n")
+    result = classify(repo)
+    assert result["tags"], "expected at least one tag"
+    for tag in result["tags"]:
+        assert isinstance(tag.get("name"), str) and tag["name"], f"empty name in {tag}"
+        assert isinstance(tag.get("evidence"), str) and tag["evidence"], f"empty evidence in {tag}"
