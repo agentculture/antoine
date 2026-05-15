@@ -5,6 +5,23 @@ All notable changes to this project will be documented in this file.
 Format follows [Keep a Changelog](https://keepachangelog.com/). This project
 adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.3.3] - 2026-05-15
+
+### Changed
+
+- `.github/workflows/tests.yml` realigned to `agentculture/steward` as the
+  source of truth: the `test` job now runs only pytest + the SonarCloud
+  scan, with lint extracted into a sibling `lint` job
+  (black/isort/flake8/bandit/markdownlint-cli2). `SONAR_TOKEN` is promoted
+  directly to job env so the step's `if:` gates on it inline — matches
+  steward's wiring exactly.
+- `sonar-project.properties`: dropped `sonar.qualitygate.wait=true` /
+  `sonar.qualitygate.timeout=600` (the only real divergence from steward —
+  CI no longer blocks on the quality-gate decision; SonarCloud's PR comment
+  still surfaces the outcome). Also dropped `sonar.projectName` and
+  `sonar.sourceEncoding` for byte-level parity with
+  `steward/sonar-project.properties`.
+
 ## [0.3.2] - 2026-05-15
 
 ### Added
