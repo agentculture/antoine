@@ -1,0 +1,77 @@
+corpus_version: 1
+
+config:
+  trials_per_cell: 3
+  arms: [A, C]
+  workspace_root: /home/spark/git
+
+targets:
+  - id: culture
+    path: /home/spark/git/culture
+    description: Async Python IRCd + agent harnesses (Claude Agent SDK).
+  - id: daria
+    path: /home/spark/git/daria
+    description: Awareness agent that consumes culture; cite-don't-import edges.
+  - id: claude-code-guide
+    path: /home/spark/git/claude-code-guide
+    description: Claude Code plugin (plugin.json, marketplace.json shape).
+  - id: agtag
+    path: /home/spark/git/agtag
+    description: Small CLI tool with dense pyproject.toml.
+  - id: citation-cli
+    path: /home/spark/git/citation-cli
+    description: Cite-don't-import reference; packages/ shape.
+
+questions:
+  - id: q-profile-overview
+    type: profile
+    scope: per_repo
+    template: |
+      You are exploring the repository at {repo_path}.
+      Give me a clear overview: what is this repo for, what is the
+      build/test story, what are its top-level components.
+    expected_evidence: {}
+
+  - id: q-connections-1hop
+    type: connections
+    scope: per_repo
+    template: |
+      What does the repository at {repo_path} connect to (depend on,
+      vendor from, or get cited by)? Walk one hop out.
+    expected_evidence: {}
+
+  - id: q-graph-workspace
+    type: graph
+    scope: workspace
+    template: |
+      Map the repos in {workspace_root}. Which ones form clusters
+      (by shared dependencies, vendored skills, or cite-don't-import
+      edges), and how are they related?
+    expected_evidence: {}
+
+  - id: q-narrative
+    type: narrative
+    scope: per_repo
+    template: |
+      Explain to me how the repository at {repo_path} works.
+      Walk me through the main flow end-to-end. Be concrete: name files
+      and functions where relevant.
+    expected_evidence: {}
+
+  - id: q-transfer-cli
+    type: transfer
+    scope: per_repo
+    template: |
+      The repository at {repo_path} has a CLI. Explain how I could
+      build something like it in my own Python repo. Be concrete: what
+      files, what entry points, what conventions, what packaging.
+    expected_evidence: {}
+
+  - id: q-transfer-quality
+    type: transfer
+    scope: per_repo
+    template: |
+      The repository at {repo_path} has a CI / quality pipeline.
+      What do I need to add to a generic Python repo to get the same
+      pipeline (lint, test, security, version-bump enforcement)?
+    expected_evidence: {}
