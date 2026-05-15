@@ -5,6 +5,20 @@ All notable changes to this project will be documented in this file.
 Format follows [Keep a Changelog](https://keepachangelog.com/). This project
 adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.3.0] - 2026-05-15
+
+### Changed
+
+- scripts-eval: judge.py now runs the pairwise blind LLM-as-judge through an operator-dispatched `general-purpose` subagent instead of calling the Anthropic API directly. CLI gains `prepare` (emit subagent jobs, one per paired cell, in a stable seeded-blinding order) and `record` (parse the subagent's verdict text, validate the vocabulary, de-blind A/C, and write the locked-surface `judge` block to both paired cell JSONs; idempotent on replay). All LLM cognition in the harness now happens inside subagents.
+- scripts-eval: `pre_tool` hook skips Agent dispatches whose `tool_input.description` starts with `scripts_eval judge:` so judge dispatches don't drop orphan `.jsonl` files into `raw/` (capture.py picks the oldest-mtime *.jsonl and would otherwise consume a judge file as the wrong tester cell). The description prefix is a load-bearing contract documented in RUNBOOK.md.
+- scripts-eval: RUNBOOK judging section rewritten for the per-pair prepare → dispatch → record operator loop. `ANTHROPIC_API_KEY` is no longer a prerequisite in the operator's shell — the subagent's API call is harness-managed.
+
+### Fixed
+
+- scripts-eval: judge no longer sees each answer's `### tools_used` / `### evidence` tail. Those tails de-blind the pairwise comparison — arm C's tail can name `scripts/profile.sh` or `seer.repo`, immediately revealing the equipped arm to the judge. The strip is applied in `prepare`'s view only; `answer_text` on disk is unchanged so `validate.py` recall scores stay stable.
+- scripts-eval: `_extract_json` now scans for balanced `{...}` spans (respecting nested braces and quoted strings) and returns the *first* valid JSON object, matching the RUNBOOK contract. The previous greedy `r"\{.*\}"` regex captured from the first `{` to the *last* `}`, so a chatty subagent emitting multiple JSON blobs (false start + correction) would either fail to parse or persist the wrong object.
+- scripts-eval: `record_verdict` now validates blind-label complementarity before any disk I/O — both labels must be in `{answer_X, answer_Y}` and distinct. The previous code allowed identical labels through `_de_blind`, which would silently return `A` and persist the wrong winner to the locked-surface `judge.comparison`.
+
 ## [0.2.2] - 2026-05-15
 
 ### Changed

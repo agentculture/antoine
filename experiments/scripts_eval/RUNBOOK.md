@@ -7,9 +7,12 @@ one cell at a time.
 ## Prerequisites
 
 - `uv sync --group experiments` has run.
-- `ANTHROPIC_API_KEY` is set in the operator's shell (for `judge.py`).
 - `corpus.yaml` lists the targets and questions for this round.
 - A run id is chosen, e.g. `2026-05-15-run-01`.
+
+The judge LLM call is performed by an operator-dispatched subagent in
+the same Claude Code session, so no `ANTHROPIC_API_KEY` needs to be in
+the operator's shell.
 
 **Note for non-spark contributors:** edit `corpus.yaml`'s `config.workspace_root` to point at *your* checkout root before round 1 — the `q-graph-workspace` question substitutes this path verbatim.
 
@@ -78,13 +81,80 @@ observability over speed.
 
 ## After both arms finish
 
+### 1. Validate
+
 ```bash
 uv run --group experiments python -m experiments.scripts_eval.validate \
     --run $SEER_EVAL_RUN_ID
+```
 
-uv run --group experiments python -m experiments.scripts_eval.judge \
-    --run $SEER_EVAL_RUN_ID
+### 2. Judge (per-pair, subagent-driven)
 
+The judge LLM call happens inside an operator-dispatched
+`general-purpose` subagent — there is no API client in `judge.py`.
+The Python side owns deterministic plumbing (pairing, seeded
+blinding, evidence-tail strip, JSON parse, disk write); the subagent
+owns only the cognition.
+
+For each `(repo_id, question_id, trial)` pair (workspace pairs use
+`_workspace_` in place of `repo_id`):
+
+1. **List remaining pairs:**
+
+   ```bash
+   uv run --group experiments python -m experiments.scripts_eval.judge \
+       prepare --run $SEER_EVAL_RUN_ID --list
+   ```
+
+2. **Prepare one pair.** This emits a single JSON object with the
+   blinded prompt and the blind labels:
+
+   ```bash
+   uv run --group experiments python -m experiments.scripts_eval.judge \
+       prepare --run $SEER_EVAL_RUN_ID \
+       --pair-key <repo_or__workspace_>/<question_id>/<trial>
+   ```
+
+3. **Dispatch the judge subagent.** Operator-Claude calls the Agent
+   tool with:
+
+   - `subagent_type`: `general-purpose`
+   - `description`: must start with `"scripts_eval judge: "` followed
+     by the pair_key. **This prefix is load-bearing** — the
+     `pre_tool` hook recognises it and skips logging so the judge
+     dispatch does not pollute `raw/`.
+   - `prompt`: the `prompt_text` field from prepare's output.
+
+   Wait for the subagent to finish; collect its final-text response.
+
+4. **Record the verdict.** Pipe the subagent's final text into
+   `record` via stdin (the subagent may produce surrounding prose
+   around the JSON — `record` extracts the first `{…}` blob):
+
+   ```bash
+   uv run --group experiments python -m experiments.scripts_eval.judge \
+       record --run $SEER_EVAL_RUN_ID \
+       --pair-key <…> \
+       --blind-label-for-a <answer_X|answer_Y> \
+       --blind-label-for-c <answer_X|answer_Y> \
+       --verdict-file - <<'EOF'
+   <paste subagent's final text here>
+   EOF
+   ```
+
+   `record` writes the locked-surface `judge` block to both paired
+   cell JSONs. It is idempotent — re-running with a different verdict
+   overwrites cleanly, so if a subagent answer was clearly bad you can
+   simply re-dispatch and re-record without manual cell editing.
+
+If `record` exits non-zero with `"non-JSON"` or a vocabulary error
+(`winner` must be `X|Y|tie`; `margin` must be `tie|slight|clear|decisive`),
+re-dispatch the judge subagent for that pair. The Python side never
+silently falls back to a tie.
+
+### 3. Report
+
+```bash
 uv run --group experiments python -m experiments.scripts_eval.report \
     --run $SEER_EVAL_RUN_ID
 ```
