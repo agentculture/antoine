@@ -44,6 +44,10 @@ dev = [
     "isort>=5.12.0",
     "pre-commit>=3.5.0",
 ]
+experiments = [
+    "anthropic>=0.40",
+    "jsonschema>=4.20",
+]
 
 [tool.coverage.run]
 source = ["seer"]
