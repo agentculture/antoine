@@ -5,6 +5,13 @@ All notable changes to this project will be documented in this file.
 Format follows [Keep a Changelog](https://keepachangelog.com/). This project
 adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.2.2] - 2026-05-15
+
+### Changed
+
+- `[tool.coverage.run]`: added `parallel=true`, `concurrency=["thread","multiprocessing"]`, `sigterm=true` so pytest-xdist (`-n auto`) worker shards merge into a single `coverage.xml`. Mirrors `agentculture/culture`. Local verification: 86.03% coverage on 130 tests (was effectively unmergeable across xdist workers before).
+- `sonar-project.properties`: added `sonar.projectName=seer-cli`, `sonar.qualitygate.wait=true`, `sonar.qualitygate.timeout=600`. The wait/timeout pair lets `tests.yml` block on SonarCloud's quality-gate decision rather than racing past it, bounded so an unavailable SonarCloud does not hang the runner.
+
 ## [0.2.1] - 2026-05-15
 
 ### Added

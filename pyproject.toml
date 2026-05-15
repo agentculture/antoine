@@ -1,6 +1,6 @@
 [project]
 name = "seer-cli"
-version = "0.2.1"
+version = "0.2.2"
 description = "seer — codebase lookup and indexing for agent skills (greenfield AgentCulture sibling)."
 readme = "README.md"
 license = "MIT"
@@ -51,6 +51,15 @@ experiments = [
 
 [tool.coverage.run]
 source = ["seer"]
+# parallel + concurrency are required for pytest-xdist (`-n auto`) to
+# produce per-worker `.coverage.*` files that coverage merges into a
+# single `.coverage`. Without these, only the master process's slice
+# is reported and modules exercised by every test look under-covered.
+# sigterm = true flushes worker coverage on graceful shutdown.
+# Mirrors agentculture/culture's [tool.coverage.run].
+parallel = true
+concurrency = ["thread", "multiprocessing"]
+sigterm = true
 omit = ["seer/__pycache__/*"]
 
 [tool.coverage.report]
