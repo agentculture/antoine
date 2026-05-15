@@ -49,6 +49,15 @@ questions:
         - "daria/skills/investigate.py"
         - "daria/skills/inspect.py"
         - "culture.yaml"
+      claude-code-guide:
+        - "Claude Code plugin"
+        - "plugin.json"
+        - "marketplace.json"
+        - "skills/"
+        - "onboard"
+        - "game-mode"
+        - "bats"
+        - "content repo"
 
   - id: q-connections-1hop
     type: connections
@@ -74,6 +83,15 @@ questions:
         - "opencode"
         - "skills/daria/SKILL.md"
         - "culture.clients.opencode.skill.irc_client"
+      claude-code-guide:
+        - "plugin marketplace add"
+        - "guide@claude-code-guide"
+        - "OriNachum/claude-code-guide"
+        - "CC-BY-4.0"
+        - "claude-agent-sdk"
+        - "bats-core"
+        - "Jekyll"
+        - "CLAUDE_PLUGIN_ROOT"
 
   - id: q-graph-workspace
     type: graph
@@ -108,6 +126,15 @@ questions:
         - "JSONL"
         - "config/agents.example.yaml"
         - "skills/daria/SKILL.md"
+      claude-code-guide:
+        - "skills/onboard"
+        - "skills/ask"
+        - "hooks/hooks.json"
+        - "track-usage.sh"
+        - "PostToolUse"
+        - "plugin.json"
+        - "/guide:onboard"
+        - "game-mode"
 
   - id: q-transfer-cli
     type: transfer
@@ -133,6 +160,14 @@ questions:
         - "config/agents.example.yaml"
         - "culture.yaml"
         - "uv sync"
+      claude-code-guide:
+        - "not a CLI"
+        - "Claude Code plugin"
+        - "plugin.json"
+        - "no application code"
+        - "no build system"
+        - "content repo"
+        - "/plugin install"
 
   - id: q-transfer-quality
     type: transfer
@@ -158,3 +193,11 @@ questions:
         - "pytest-asyncio"
         - "uv sync --extra dev"
         - "asyncio_mode = \"auto\""
+      claude-code-guide:
+        - "tests.yml"
+        - "pages.yml"
+        - "bats"
+        - "bats-core"
+        - "Jekyll"
+        - "docs-freshness.yml"
+        - "bats tests/*.bats"
