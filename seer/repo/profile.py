@@ -12,7 +12,7 @@ Missing optional sources degrade silently to empty fields.
 
 from __future__ import annotations
 
-import subprocess  # noqa: S404
+import subprocess  # noqa: S404  # nosec B404
 from pathlib import Path
 
 import yaml
@@ -116,9 +116,12 @@ def _read_skill_sources(path: Path) -> dict[str, dict[str, str]]:
             continue
         parts = [p.strip() for p in s.strip("|").split("|")]
         if len(parts) >= 2 and parts[0] and parts[1] and parts[0] not in {"name", "Skill"}:
-            out[parts[0]] = {
-                "source": parts[1],
-                "version": parts[2] if len(parts) >= 3 else "",
+            key = parts[0].strip("` ").strip()
+            if key.lower() in {"name", "skill"}:
+                continue
+            out[key] = {
+                "source": parts[1].strip("` ").strip(),
+                "version": parts[2].strip("` ").strip() if len(parts) >= 3 else "",
             }
     return out
 
@@ -135,13 +138,14 @@ def _read_citations(path: Path) -> list[dict[str, str]]:
             continue
         parts = [p.strip() for p in s.strip("|").split("|")]
         if len(parts) >= 3 and parts[0] and parts[1] and parts[2]:
-            if parts[0].lower() == "local":
+            first = parts[0].lower().strip("` ").strip()
+            if first.startswith("local") or first in {"path", "file"}:
                 continue
             out.append(
                 {
-                    "local": parts[0],
-                    "source_repo": parts[1],
-                    "sha": parts[2],
+                    "local": parts[0].strip("` ").strip(),
+                    "source_repo": parts[1].strip("` ").strip(),
+                    "sha": parts[2].strip("` ").strip(),
                 }
             )
     return out
@@ -291,7 +295,7 @@ def _read_recent_commits(path: Path, *, n: int) -> list[str]:
     if not (path / ".git").exists():
         return []
     try:
-        result = subprocess.run(  # noqa: S603,S607
+        result = subprocess.run(  # noqa: S603,S607  # nosec B603 B607
             ["git", "-C", str(path), "log", f"-{n}", "--pretty=format:%s"],
             capture_output=True,
             text=True,

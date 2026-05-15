@@ -267,6 +267,10 @@ def render_graph_markdown(graph: dict[str, Any]) -> str:
         by_type.setdefault(edge["type"], []).append(edge)
     _append_graph_edges(lines, by_type)
 
+    walk_errors = graph.get("walk_errors") or []
+    if walk_errors:
+        _append_walk_errors(lines, walk_errors)
+
     mermaid = graph.get("mermaid") or ""
     if mermaid:
         lines.append("")

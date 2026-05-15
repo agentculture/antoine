@@ -9,18 +9,23 @@ from __future__ import annotations
 from pathlib import Path
 from typing import Any
 
+from seer.cli._errors import SeerError
 from seer.repo.connections import _edges_from_profile
 from seer.repo.detect import find_repos, resolve_name
 from seer.repo.profile import profile_shallow
 
 
-def build_graph(
+def build_graph(  # pylint: disable=too-many-locals
     roots: list[Path],
     *,
     additional_markers: list[str] | None = None,
     skip_dirs: list[str] | None = None,
+    strict: bool = False,
 ) -> dict[str, Any]:
     """Build a workspace graph over the given roots.
+
+    Per-node profiling errors are collected in ``walk_errors``; the build
+    continues unless ``strict=True``.
 
     Parameters
     ----------
@@ -31,11 +36,14 @@ def build_graph(
         Extra filenames treated as repo markers during discovery.
     skip_dirs:
         Directory names skipped during discovery.
+    strict:
+        When ``True``, re-raise the first per-node :class:`SeerError`
+        instead of inlining it into ``walk_errors``.
 
     Returns
     -------
     dict with keys:
-        ``roots``, ``nodes``, ``edges``, ``mermaid``.
+        ``roots``, ``nodes``, ``edges``, ``walk_errors``, ``mermaid``.
     """
     name_to_path: dict[str, Path] = {}
     for root in roots:
@@ -51,11 +59,21 @@ def build_graph(
     nodes: list[dict[str, Any]] = []
     edges: list[dict[str, str]] = []
     external_seen: set[str] = set()
+    walk_errors: list[dict[str, str]] = []
 
     for name, path in sorted(name_to_path.items()):
         try:
             p = profile_shallow(path)
-        except Exception:  # pylint: disable=broad-exception-caught  # workspace view never aborts
+        except SeerError as err:
+            if strict:
+                raise
+            walk_errors.append(
+                {
+                    "node": f"{name} ({path})",
+                    "reason": err.reason or err.message,
+                    "remediation": err.remediation,
+                }
+            )
             p = {}
         nodes.append(
             {
@@ -78,6 +96,7 @@ def build_graph(
         "roots": [str(r) for r in roots],
         "nodes": nodes,
         "edges": edges,
+        "walk_errors": walk_errors,
         "mermaid": _render_mermaid(nodes, edges),
     }
 

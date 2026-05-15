@@ -75,6 +75,7 @@ def _graph(args: argparse.Namespace, cfg: RepoMapConfig) -> int:
         roots,
         additional_markers=(args.marker or cfg.additional_markers),
         skip_dirs=cfg.skip_dirs,
+        strict=args.strict,
     )
     if args.json:
         emit_result({"ok": True, "data": result}, json_mode=True)
@@ -136,6 +137,7 @@ def _build_parser() -> argparse.ArgumentParser:
     pg = sub.add_parser("graph", help="Multi-root workspace view.")
     pg.add_argument("roots", nargs="*")
     pg.add_argument("--marker", action="append", default=None)
+    pg.add_argument("--strict", action="store_true", help="fail on any per-node error")
     pg.add_argument("--json", action="store_true")
 
     return parser

@@ -162,3 +162,40 @@ def test_profile_deep_missing_readme_and_git(tmp_path: Path) -> None:
     assert p["readme_intro"] == ""
     assert p["claude_md_sections"] == ""
     assert p["commits_recent"] == []
+
+
+def test_profile_shallow_skill_sources_with_backticks(tmp_path: Path) -> None:
+    """_read_skill_sources strips backticks from skill names and provenance fields."""
+    repo = tmp_path / "demo"
+    repo.mkdir()
+    (repo / "pyproject.toml").write_text('[project]\nname = "demo"\n')
+    (repo / ".claude" / "skills" / "cicd").mkdir(parents=True)
+    docs = repo / "docs"
+    docs.mkdir()
+    (docs / "skill-sources.md").write_text(
+        "| Skill | Source | Version |\n" "|---|---|---|\n" "| `cicd` | steward | 0.11.0 |\n"
+    )
+    p = profile_shallow(repo)
+    assert len(p["vendored_skills"]) == 1
+    s = p["vendored_skills"][0]
+    assert s["name"] == "cicd"
+    assert s.get("source") == "steward"
+    assert s.get("version") == "0.11.0"
+
+
+def test_profile_shallow_citations_with_backticked_source_and_multiword_header(
+    tmp_path: Path,
+) -> None:
+    """_read_citations recognises 'Local path' headers and strips backticks from fields."""
+    repo = tmp_path / "demo"
+    repo.mkdir()
+    (repo / "pyproject.toml").write_text('[project]\nname = "demo"\n')
+    (repo / "CITATION.md").write_text(
+        "| Local path | Source | SHA |\n"
+        "|---|---|---|\n"
+        "| src/x.py | `agentculture/culture` | abc1234 |\n"
+    )
+    p = profile_shallow(repo)
+    assert p["citations"] == [
+        {"local": "src/x.py", "source_repo": "agentculture/culture", "sha": "abc1234"},
+    ]
