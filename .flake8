@@ -14,4 +14,6 @@ exclude =
     build
 per-file-ignores =
     # Bandit S-rules are noisy in tests (assert, subprocess, etc.) — mute them.
-    tests/*:S101,S404,S603
+    tests/*:S101,S108,S404,S603
+    # subprocess with constant args in manifest.py — false positives for S603, S607
+    experiments/scripts_eval/manifest.py:S404,S603,S607

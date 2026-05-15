@@ -1,0 +1,4 @@
+{"type": "user", "ts": 1700000005.0, "content": "explain X"}
+{"type": "assistant", "ts": 1700000050.0, "model": "claude-opus-4-7", "usage": {"input_tokens": 1200, "output_tokens": 340, "cache_read_input_tokens": 800, "cache_creation_input_tokens": 100}, "content": "the subagent's actual answer"}
+{"type": "user", "ts": 1700000070.0, "content": "operator's next turn"}
+{"type": "assistant", "ts": 1700000080.0, "model": "claude-opus-4-7", "usage": {"input_tokens": 9999, "output_tokens": 9999}, "content": "operator's later turn output — must NOT be selected"}

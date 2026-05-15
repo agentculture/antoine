@@ -222,3 +222,7 @@ __marimo__/
 
 # Claude Code per-machine harness state
 .claude/settings.local.json
+
+# scripts-eval results — runs are local artefacts, not checked in.
+experiments/scripts_eval/results/*
+!experiments/scripts_eval/results/.gitkeep

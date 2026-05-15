@@ -1,0 +1,304 @@
+corpus_version: 1
+
+config:
+  trials_per_cell: 3
+  arms: [A, C]
+  workspace_root: /home/spark/git
+
+targets:
+  - id: culture
+    path: /home/spark/git/culture
+    description: Async Python IRCd + agent harnesses (Claude Agent SDK).
+  - id: daria
+    path: /home/spark/git/daria
+    description: Awareness agent that consumes culture; cite-don't-import edges.
+  - id: claude-code-guide
+    path: /home/spark/git/claude-code-guide
+    description: Claude Code plugin (plugin.json, marketplace.json shape).
+  - id: agtag
+    path: /home/spark/git/agtag
+    description: Small CLI tool with dense pyproject.toml.
+  - id: citation-cli
+    path: /home/spark/git/citation-cli
+    description: Cite-don't-import reference; packages/ shape.
+
+questions:
+  - id: q-profile-overview
+    type: profile
+    scope: per_repo
+    template: |
+      You are exploring the repository at {repo_path}.
+      Give me a clear overview: what is this repo for, what is the
+      build/test story, what are its top-level components.
+    expected_evidence:
+      culture:
+        - pyproject.toml
+        - "uv sync"
+        - culture.yaml
+        - "async IRCd"
+        - "agent harness"
+        - "claude-agent-sdk"
+        - "pytest -n auto"
+        - "culture.cli:main"
+      daria:
+        - "Data Refinery Intelligent Agent"
+        - "awareness pillar"
+        - pyproject.toml
+        - "uv run pytest -v"
+        - "daria/logger.py"
+        - "daria/skills/investigate.py"
+        - "daria/skills/inspect.py"
+        - "culture.yaml"
+      claude-code-guide:
+        - "Claude Code plugin"
+        - "plugin.json"
+        - "marketplace.json"
+        - "skills/"
+        - "onboard"
+        - "game-mode"
+        - "bats"
+        - "content repo"
+      agtag:
+        - "Agent to Agent communication CLI"
+        - "gh CLI"
+        - "issue post"
+        - "issue fetch"
+        - "issue reply"
+        - pyproject.toml
+        - "pyyaml"
+        - "culture.yaml"
+      citation-cli:
+        - "cite, don't import"
+        - "packages/"
+        - "Quote / Paraphrase / Synthesize"
+        - "cite add"
+        - "cite check"
+        - "packages/python"
+        - "packages/npm"
+        - "consumers are expected to diverge"
+
+  - id: q-connections-1hop
+    type: connections
+    scope: per_repo
+    template: |
+      What does the repository at {repo_path} connect to (depend on,
+      vendor from, or get cited by)? Walk one hop out.
+    expected_evidence:
+      culture:
+        - agentirc-cli
+        - cultureagent
+        - anthropic
+        - "claude-agent-sdk"
+        - agtag
+        - "opentelemetry"
+        - cicd
+        - version-bump
+      daria:
+        - culture
+        - "vanilla Culture agent"
+        - playwright
+        - "pr-review"
+        - "opencode"
+        - "skills/daria/SKILL.md"
+        - "culture.clients.opencode.skill.irc_client"
+      claude-code-guide:
+        - "plugin marketplace add"
+        - "guide@claude-code-guide"
+        - "OriNachum/claude-code-guide"
+        - "CC-BY-4.0"
+        - "claude-agent-sdk"
+        - "bats-core"
+        - "Jekyll"
+        - "CLAUDE_PLUGIN_ROOT"
+      agtag:
+        - "agentculture/agtag"
+        - steward
+        - "gh CLI"
+        - "pyyaml>=6.0"
+        - "cicd"
+        - "version-bump"
+        - "communicate"
+        - "culture.yaml"
+      citation-cli:
+        - "packages/python"
+        - "packages/npm"
+        - "uv tool install citation-cli"
+        - "npm install -g citation-cli"
+        - "pyproject.toml"
+        - "package.json"
+        - "culture.dev/citation-cli"
+        - "assimilai"
+
+  - id: q-graph-workspace
+    type: graph
+    scope: workspace
+    template: |
+      Map the repos in {workspace_root}. Which ones form clusters
+      (by shared dependencies, vendored skills, or cite-don't-import
+      edges), and how are they related?
+    expected_evidence:
+      _global:
+        - agentculture
+        - "steward"
+        - "culture"
+        - "daria"
+        - "irc-lens"
+        - "vendor"
+        - "reachy_nova"
+        - "reachy_mini"
+        - "jetson"
+        - "29 repos"
+
+  - id: q-narrative
+    type: narrative
+    scope: per_repo
+    template: |
+      Explain to me how the repository at {repo_path} works.
+      Walk me through the main flow end-to-end. Be concrete: name files
+      and functions where relevant.
+    expected_evidence:
+      culture:
+        - "culture/cli/__init__.py"
+        - "culture/cli/server.py"
+        - "culture/observer.py"
+        - "culture/protocol/"
+        - "culture/bots/"
+        - "culture/persistence.py"
+        - "culture.cli:main"
+      daria:
+        - "daria/logger.py"
+        - "daria/skills/investigate.py"
+        - "daria/skills/inspect.py"
+        - "fetch_page"
+        - "JSONL"
+        - "config/agents.example.yaml"
+        - "skills/daria/SKILL.md"
+      claude-code-guide:
+        - "skills/onboard"
+        - "skills/ask"
+        - "hooks/hooks.json"
+        - "track-usage.sh"
+        - "PostToolUse"
+        - "plugin.json"
+        - "/guide:onboard"
+        - "game-mode"
+      agtag:
+        - "agtag/cli/__init__.py"
+        - "_build_parser"
+        - "_dispatch"
+        - "agtag/issue/"
+        - "issue post"
+        - "issue fetch"
+        - "issue reply"
+        - "agtag/nick.py"
+      citation-cli:
+        - "packages/python/src/citation_cli/cli.py"
+        - "packages/python/src/citation_cli/core.py"
+        - "packages/npm/src/cli.mjs"
+        - "packages/npm/src/core.mjs"
+        - "cite add"
+        - "cite check"
+        - "cite migrate"
+        - "sha256"
+
+  - id: q-transfer-cli
+    type: transfer
+    scope: per_repo
+    template: |
+      The repository at {repo_path} has a CLI. Explain how I could
+      build something like it in my own Python repo. Be concrete: what
+      files, what entry points, what conventions, what packaging.
+    expected_evidence:
+      culture:
+        - "[project.scripts]"
+        - "culture.cli:main"
+        - pyproject.toml
+        - hatchling
+        - "culture/cli/__init__.py"
+        - subcommand
+        - "uv sync"
+      daria:
+        - pyproject.toml
+        - hatchling
+        - "culture server start"
+        - "culture start"
+        - "config/agents.example.yaml"
+        - "culture.yaml"
+        - "uv sync"
+      claude-code-guide:
+        - "not a CLI"
+        - "Claude Code plugin"
+        - "plugin.json"
+        - "no application code"
+        - "no build system"
+        - "content repo"
+        - "/plugin install"
+      agtag:
+        - "[project.scripts]"
+        - "agtag.cli:main"
+        - pyproject.toml
+        - hatchling
+        - "argparse"
+        - "_ArgumentParser"
+        - "agtag/cli/__init__.py"
+        - "uv sync"
+      citation-cli:
+        - "[project.scripts]"
+        - "citation_cli.cli:main"
+        - pyproject.toml
+        - hatchling
+        - "cite add"
+        - "cite check"
+        - "subparsers"
+        - "uv tool install citation-cli"
+
+  - id: q-transfer-quality
+    type: transfer
+    scope: per_repo
+    template: |
+      The repository at {repo_path} has a CI / quality pipeline.
+      What do I need to add to a generic Python repo to get the same
+      pipeline (lint, test, security, version-bump enforcement)?
+    expected_evidence:
+      culture:
+        - "tests.yml"
+        - "security-checks.yml"
+        - bandit
+        - pylint
+        - flake8
+        - "pytest-cov"
+        - SonarCloud
+        - version-check
+      daria:
+        - "tests.yml"
+        - "pages.yml"
+        - "uv run pytest -v"
+        - "pytest-asyncio"
+        - "uv sync --extra dev"
+        - "asyncio_mode = \"auto\""
+      claude-code-guide:
+        - "tests.yml"
+        - "pages.yml"
+        - "bats"
+        - "bats-core"
+        - "Jekyll"
+        - "docs-freshness.yml"
+        - "bats tests/*.bats"
+      agtag:
+        - "tests.yml"
+        - "publish.yml"
+        - bandit
+        - flake8
+        - SonarCloud
+        - "pytest-cov"
+        - "version-check"
+        - "markdownlint-cli2"
+      citation-cli:
+        - "publish-pypi.yml"
+        - "publish-npm.yml"
+        - "site-check.yml"
+        - "uv run pytest tests/ -v"
+        - "TestPyPI"
+        - "trusted-publishing"
+        - "node --test"
+        - "docs.yml"

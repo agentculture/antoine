@@ -1,0 +1,28 @@
+corpus_version: 1
+config:
+  trials_per_cell: 3
+  arms: [A, C]
+  workspace_root: /home/spark/git
+targets:
+  - id: culture
+    path: /home/spark/git/culture
+    description: Async Python IRCd
+  - id: daria
+    path: /home/spark/git/daria
+    description: Awareness agent
+questions:
+  - id: q-profile-overview
+    type: profile
+    scope: per_repo
+    template: |
+      Overview the repo at {repo_path}.
+    expected_evidence:
+      culture: [pyproject.toml, "uv sync"]
+      daria: [pyproject.toml, awareness]
+  - id: q-graph-workspace
+    type: graph
+    scope: workspace
+    template: |
+      Map the repos in {workspace_root}.
+    expected_evidence:
+      _global: [agentculture, culture]

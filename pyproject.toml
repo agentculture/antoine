@@ -1,6 +1,6 @@
 [project]
 name = "seer-cli"
-version = "0.2.0"
+version = "0.2.1"
 description = "seer — codebase lookup and indexing for agent skills (greenfield AgentCulture sibling)."
 readme = "README.md"
 license = "MIT"
@@ -43,6 +43,10 @@ dev = [
     "black>=23.7.0",
     "isort>=5.12.0",
     "pre-commit>=3.5.0",
+]
+experiments = [
+    "anthropic>=0.40",
+    "jsonschema>=4.20",
 ]
 
 [tool.coverage.run]
