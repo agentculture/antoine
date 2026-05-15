@@ -199,3 +199,77 @@ def test_profile_shallow_citations_with_backticked_source_and_multiword_header(
     assert p["citations"] == [
         {"local": "src/x.py", "source_repo": "agentculture/culture", "sha": "abc1234"},
     ]
+
+
+def test_profile_shallow_skill_sources_preserves_inline_backtick_spans(
+    tmp_path: Path,
+) -> None:
+    """A cell with multiple inline `…` spans must not lose any backticks.
+
+    The agtag-shape input is a cell like
+    `` `agentculture/steward` (`.claude/skills/cicd/`) `` — only a *fully*
+    backtick-wrapped cell should be unwrapped; cells with internal backtick
+    spans stay verbatim so the rendered markdown remains valid.
+    """
+    repo = tmp_path / "demo"
+    repo.mkdir()
+    (repo / "pyproject.toml").write_text('[project]\nname = "demo"\n')
+    (repo / ".claude" / "skills" / "cicd").mkdir(parents=True)
+    docs = repo / "docs"
+    docs.mkdir()
+    (docs / "skill-sources.md").write_text(
+        "| Skill | Source | Version |\n"
+        "|---|---|---|\n"
+        "| `cicd` | `agentculture/steward` (`.claude/skills/cicd/`) | adapted |\n"
+    )
+    p = profile_shallow(repo)
+    assert len(p["vendored_skills"]) == 1
+    s = p["vendored_skills"][0]
+    assert s["name"] == "cicd"
+    # Backticks inside the cell are preserved; the outer pair is NOT stripped
+    # because the cell isn't a single wrapped span.
+    assert s["source"] == "`agentculture/steward` (`.claude/skills/cicd/`)"
+    # Every opening backtick has a matching closing backtick.
+    assert s["source"].count("`") % 2 == 0
+    assert s["version"] == "adapted"
+
+
+def test_profile_shallow_package_tree_nested(tmp_path: Path) -> None:
+    """package_tree exposes top-level subpackages and modules to ~depth 2."""
+    repo = tmp_path / "demo"
+    repo.mkdir()
+    (repo / "pyproject.toml").write_text('[project]\nname = "demo"\n')
+    (repo / "demo").mkdir()
+    (repo / "demo" / "__init__.py").write_text("")
+    (repo / "demo" / "nick.py").write_text("")
+    (repo / "demo" / "cli").mkdir()
+    (repo / "demo" / "cli" / "__init__.py").write_text("")
+    (repo / "demo" / "cli" / "_errors.py").write_text("")
+    (repo / "demo" / "cli" / "_commands").mkdir()
+    (repo / "demo" / "cli" / "_commands" / "__init__.py").write_text("")
+    (repo / "demo" / "issue").mkdir()
+    (repo / "demo" / "issue" / "__init__.py").write_text("")
+    (repo / "demo" / "issue" / "post.py").write_text("")
+    # Excluded dirs must NOT appear in the tree.
+    (repo / "tests").mkdir()
+    (repo / "tests" / "__init__.py").write_text("")
+    (repo / "demo" / "__pycache__").mkdir()
+    p = profile_shallow(repo)
+    tree = p["package_tree"]
+    assert isinstance(tree, list)
+    assert len(tree) == 1
+    root = tree[0]
+    assert root["name"] == "demo"
+    assert "nick.py" in root["modules"]
+    assert "__init__.py" in root["modules"]
+    sub_names = {sp["name"] for sp in root["subpackages"]}
+    assert sub_names == {"cli", "issue"}
+    cli = next(sp for sp in root["subpackages"] if sp["name"] == "cli")
+    assert "_errors.py" in cli["modules"]
+    cli_sub = {sp["name"] for sp in cli["subpackages"]}
+    assert cli_sub == {"_commands"}
+    issue = next(sp for sp in root["subpackages"] if sp["name"] == "issue")
+    assert "post.py" in issue["modules"]
+    # Excluded dirs stay out.
+    assert "tests" not in sub_names
+    assert "__pycache__" not in {sp["name"] for sp in root["subpackages"]}

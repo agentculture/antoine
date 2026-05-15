@@ -47,6 +47,66 @@ def test_render_profile_markdown_includes_all_sections() -> None:
     assert "democult" in md
 
 
+def test_render_profile_markdown_inserts_horizontal_rules_between_sections() -> None:
+    """Every top-level `## …` section is preceded by a `---` horizontal rule.
+
+    Gives the reader a strong visual anchor between dense table sections.
+    """
+    md = render_profile_markdown(_shallow_fixture())
+    headings = [
+        "## Entry points",
+        "## Runtime dependencies",
+        "## Package layout",
+        "## Vendored skills",
+        "## Citations",
+        "## Recent changelog",
+        "## Project status",
+        "## Extra",
+    ]
+    for h in headings:
+        assert h in md, f"missing heading: {h}"
+        # Each ## heading must be preceded by a `---` rule on its own line.
+        idx = md.index(h)
+        prefix = md[:idx]
+        assert prefix.rstrip().endswith("---"), f"no `---` before {h!r}"
+
+
+def test_render_profile_markdown_nested_package_tree() -> None:
+    """When `package_tree` is populated, subpackages and modules render nested."""
+    fx = _shallow_fixture()
+    fx["package_tree"] = [
+        {
+            "name": "demo",
+            "modules": ["__init__.py", "nick.py"],
+            "subpackages": [
+                {
+                    "name": "cli",
+                    "modules": ["__init__.py", "_errors.py"],
+                    "subpackages": [
+                        {"name": "_commands", "modules": ["__init__.py"], "subpackages": []},
+                    ],
+                },
+                {
+                    "name": "issue",
+                    "modules": ["__init__.py", "post.py"],
+                    "subpackages": [],
+                },
+            ],
+        }
+    ]
+    md = render_profile_markdown(fx)
+    # Top-level package shown.
+    assert "demo/" in md
+    # Subpackages.
+    assert "cli/" in md
+    assert "issue/" in md
+    assert "_commands/" in md
+    # Modules.
+    assert "nick.py" in md
+    assert "_errors.py" in md
+    assert "post.py" in md
+
+
 def test_render_profile_markdown_omits_empty_sections() -> None:
     minimal = {
         "path": "/x/min",

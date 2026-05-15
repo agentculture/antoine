@@ -5,6 +5,18 @@ All notable changes to this project will be documented in this file.
 Format follows [Keep a Changelog](https://keepachangelog.com/). This project
 adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.4.1] - 2026-05-15
+
+### Changed
+
+- repo-map profile: surface a depth-2 package tree under Package layout (top-level packages, subpackages, module files) so the section actually answers "top-level components" without re-grepping
+- repo-map profile: insert --- horizontal rules between top-level sections so dense table sections (vendored skills, changelog) have a clear visual anchor
+- repo-map SKILL.md description: enumerate the concrete fields each verb returns (profile / connections / graph) and add explicit token-math + "when NOT to use" guidance, so callers can do the cost/benefit math at skill-selection time
+
+### Fixed
+
+- repo-map profile: vendored-skills table no longer mangles Source cells containing inline backtick spans (e.g. `agentculture/steward` (`.claude/skills/cicd/`)) — only fully balanced `…` wrappers are unwrapped, internal spans stay intact
+
 ## [0.4.0] - 2026-05-15
 
 ### Changed
@@ -65,7 +77,6 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
   `repo-map` — appropriate behavior for an overview question on a small
   repo, per the established evaluation framing (skill should be reached
   for when needed, not unconditionally).
-
 ## [0.3.3] - 2026-05-15
 
 ### Changed

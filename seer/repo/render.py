@@ -22,9 +22,20 @@ _KIND_LABEL = {
 }
 
 
+def _section_break(lines: list[str]) -> None:
+    """Emit a blank line + horizontal rule before a new section heading.
+
+    Gives top-level ``##`` sections a strong visual anchor — readers (human
+    or LLM) can scan the report and immediately see section boundaries even
+    when individual sections contain dense prose-filled tables.
+    """
+    lines.append("")
+    lines.append("---")
+
+
 def _append_skill_table(lines: list[str], skills: list[dict]) -> None:
     """Append the vendored-skills table section to *lines*."""
-    lines.append("")
+    _section_break(lines)
     lines.append(f"## Vendored skills ({len(skills)})")
     lines.append("| Skill | Source | Version |")
     lines.append("|---|---|---|")
@@ -34,7 +45,7 @@ def _append_skill_table(lines: list[str], skills: list[dict]) -> None:
 
 def _append_citation_table(lines: list[str], citations: list[dict]) -> None:
     """Append the citations table section to *lines*."""
-    lines.append("")
+    _section_break(lines)
     lines.append(f"## Citations ({len(citations)})")
     lines.append("| Local | Source repo | SHA |")
     lines.append("|---|---|---|")
@@ -53,7 +64,7 @@ def _changelog_line(entry: dict) -> str:
 
 def _append_changelog(lines: list[str], changelog: list[dict]) -> None:
     """Append the recent-changelog section to *lines*."""
-    lines.append("")
+    _section_break(lines)
     lines.append("## Recent changelog")
     for entry in changelog:
         lines.append(_changelog_line(entry))
@@ -61,30 +72,49 @@ def _append_changelog(lines: list[str], changelog: list[dict]) -> None:
 
 def _append_deps_runtime(lines: list[str], deps: list[str]) -> None:
     """Append the `## Runtime dependencies` block."""
-    lines.append("")
+    _section_break(lines)
     lines.append(f"## Runtime dependencies ({len(deps)})")
     for d in deps:
         lines.append(f"- {d}")
 
 
-def _append_package_layout(lines: list[str], layout: list[str]) -> None:
-    """Append the `## Package layout` block."""
-    lines.append("")
+def _append_tree_node(lines: list[str], node: dict[str, Any], indent: int) -> None:
+    """Render one ``package_tree`` node and recurse into its subpackages."""
+    pad = "  " * indent
+    lines.append(f"{pad}- **{node.get('name', '')}/**")
+    modules = node.get("modules") or []
+    if modules:
+        module_pad = "  " * (indent + 1)
+        joined = ", ".join(f"`{m}`" for m in modules)
+        lines.append(f"{module_pad}- {joined}")
+    for sub in node.get("subpackages") or []:
+        _append_tree_node(lines, sub, indent + 1)
+
+
+def _append_package_layout(
+    lines: list[str], layout: list[str], tree: list[dict[str, Any]] | None
+) -> None:
+    """Append the `## Package layout` block — nested tree if available, flat list otherwise."""
+    _section_break(lines)
     lines.append("## Package layout")
+    if tree:
+        for node in tree:
+            _append_tree_node(lines, node, indent=0)
+        return
     for item in layout:
         lines.append(f"- {item}")
 
 
 def _append_project_status(lines: list[str], status: str) -> None:
     """Append the `## Project status` block."""
-    lines.append("")
+    _section_break(lines)
     lines.append("## Project status")
     lines.append(status)
 
 
 def _append_extra(lines: list[str], extra: dict[str, Any]) -> None:
     """Append the `## Extra` key/value block."""
-    lines.append("")
+    _section_break(lines)
     lines.append("## Extra")
     for k, v in extra.items():
         lines.append(f"- **{k}:** {v}")
@@ -98,8 +128,10 @@ def _append_shallow_sections(lines: list[str], profile: dict[str, Any]) -> None:
     """
     if deps := profile.get("deps_runtime") or []:
         _append_deps_runtime(lines, deps)
-    if layout := profile.get("package_layout") or []:
-        _append_package_layout(lines, layout)
+    layout = profile.get("package_layout") or []
+    tree = profile.get("package_tree") or []
+    if layout or tree:
+        _append_package_layout(lines, layout, tree)
     if skills := profile.get("vendored_skills") or []:
         _append_skill_table(lines, skills)
     if citations := profile.get("citations") or []:
@@ -116,18 +148,18 @@ def _append_deep_sections(lines: list[str], profile: dict[str, Any]) -> None:
     """Append deep-only sections (readme intro, CLAUDE.md content, commits)."""
     readme = profile.get("readme_intro") or ""
     if readme:
-        lines.append("")
+        _section_break(lines)
         lines.append("## Readme intro")
         lines.append(readme)
 
     md_sections = profile.get("claude_md_sections") or ""
     if md_sections:
-        lines.append("")
+        _section_break(lines)
         lines.append(md_sections)
 
     commits = profile.get("commits_recent") or []
     if commits:
-        lines.append("")
+        _section_break(lines)
         lines.append("## Recent commits")
         for c in commits:
             lines.append(f"- {c}")
@@ -156,7 +188,7 @@ def render_profile_markdown(profile: dict[str, Any]) -> str:
 
     entry_points = profile.get("entry_points") or {}
     if entry_points:
-        lines.append("")
+        _section_break(lines)
         lines.append("## Entry points")
         for k, v in entry_points.items():
             lines.append(f"- `{k}` → `{v}`")
