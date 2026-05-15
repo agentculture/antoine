@@ -126,7 +126,8 @@ def test_start_workspace_scope_uses_workspace_slug(staged):
     assert rc == 0
 
     files = list(_in_flight_dir(staged).glob("*.json"))
-    assert files[0].name == "_workspace_-q-graph-workspace-t1.json"
+    # Filename embeds arm + workspace slug (arm prefix prevents cross-arm collision)
+    assert files[0].name == "A-_workspace_-q-graph-workspace-t1.json"
     rec = json.loads(files[0].read_text())
     assert rec["repo_id"] is None
 
@@ -134,6 +135,37 @@ def test_start_workspace_scope_uses_workspace_slug(staged):
 def test_start_errors_without_session_id(staged, monkeypatch):
     monkeypatch.delenv("CLAUDE_CODE_SESSION_ID")
     rc = trial.cmd_start(_make_start_args())
+    assert rc == 2
+
+
+def test_start_different_arms_use_separate_in_flight_files(staged):
+    """Both arms can be in-flight for the same (target, question, trial) without colliding."""
+    trial.cmd_start(_make_start_args(arm="A"))
+    trial.cmd_start(_make_start_args(arm="C"))
+
+    files = sorted(p.name for p in _in_flight_dir(staged).glob("*.json"))
+    assert files == [
+        "A-agtag-q-profile-overview-t1.json",
+        "C-agtag-q-profile-overview-t1.json",
+    ]
+    # Each record's arm matches its filename prefix
+    for fp in _in_flight_dir(staged).glob("*.json"):
+        rec = json.loads(fp.read_text())
+        assert fp.name.startswith(f"{rec['arm']}-")
+
+
+def test_start_errors_when_existing_record_fields_mismatch(staged):
+    """If a stale in-flight record's fields disagree with start args, refuse."""
+    rc = trial.cmd_start(_make_start_args(arm="A", target="agtag"))
+    assert rc == 0
+
+    # Tamper: claim a different target in the record (filename stays the same)
+    fp = list(_in_flight_dir(staged).glob("*.json"))[0]
+    rec = json.loads(fp.read_text())
+    rec["repo_id"] = "different-target"
+    fp.write_text(json.dumps(rec, indent=2) + "\n")
+
+    rc = trial.cmd_start(_make_start_args(arm="A", target="agtag"))
     assert rc == 2
 
 
@@ -251,6 +283,19 @@ def test_end_skips_sidechain_with_mtime_before_start(staged):
 
 def test_end_errors_with_malformed_trial_id(staged):
     rc = trial.cmd_end(_make_end_args("not-a-real-id"))
+    assert rc == 2
+
+
+def test_end_errors_when_trial_id_arm_diverges_from_in_flight(staged):
+    """A hand-edited in-flight record with the wrong arm must be rejected."""
+    trial.cmd_start(_make_start_args(arm="A"))
+    fp = list(_in_flight_dir(staged).glob("*.json"))[0]
+    rec = json.loads(fp.read_text())
+    rec["arm"] = "C"  # lies — the filename is A-...
+    fp.write_text(json.dumps(rec, indent=2) + "\n")
+
+    _stage_sidechain(staged)
+    rc = trial.cmd_end(_make_end_args("r1/A/agtag-q-profile-overview-t1"))
     assert rc == 2
 
 

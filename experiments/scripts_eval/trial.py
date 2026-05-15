@@ -11,8 +11,11 @@ the Agent's final-text result returns:
 
 ``start`` reads ``CLAUDE_CODE_SESSION_ID`` from env, records
 ``start_time`` and ``session_id`` to
-``results/<run>/.in_flight/<slug>.json``, and prints the ``trial_id``
-(of the form ``<run>/<arm>/<slug>``) to stdout.
+``results/<run>/.in_flight/<arm>-<slug>.json``, and prints the
+``trial_id`` (of the form ``<run>/<arm>/<slug>``) to stdout. The arm
+is embedded in the in-flight filename so the same ``(target,
+question, trial)`` triple can be in flight under both arms
+simultaneously without colliding.
 
 ``end`` reads the in-flight record; finds the newest ``agent-*.jsonl``
 under ``<CLAUDE_PROJECTS_DIR>/<encoded_cwd>/<session_id>/subagents/``
@@ -78,8 +81,11 @@ def _in_flight_dir(run_id: str) -> Path:
     return _io.run_dir(run_id) / ".in_flight"
 
 
-def _in_flight_path(run_id: str, slug: str) -> Path:
-    return _in_flight_dir(run_id) / f"{slug}.json"
+def _in_flight_path(run_id: str, arm: str, slug: str) -> Path:
+    """In-flight record path. The arm is part of the filename so that
+    starting the same ``(target, question, trial)`` under both arms
+    yields two distinct records."""
+    return _in_flight_dir(run_id) / f"{arm}-{slug}.json"
 
 
 def _sidechain_dir(session_id: str) -> Path:
@@ -101,10 +107,28 @@ def cmd_start(args) -> int:
         )
         return 2
     slug = _trial_slug(args.target, args.question, args.trial)
-    fp = _in_flight_path(args.run, slug)
+    fp = _in_flight_path(args.run, args.arm, slug)
     if fp.exists():
-        # Idempotent re-call: keep the existing record (preserve start_time)
+        # Idempotent re-call: keep the existing record (preserve start_time).
+        # The path already encodes arm + slug, so the only way a mismatch
+        # surfaces here is via a hand-edited / corrupted record — refuse
+        # rather than silently overwrite.
         record = json.loads(fp.read_text(encoding="utf-8"))
+        expected = {
+            "run_id": args.run,
+            "arm": args.arm,
+            "repo_id": args.target,
+            "question_id": args.question,
+            "trial": args.trial,
+        }
+        for k, v in expected.items():
+            if record.get(k) != v:
+                print(
+                    f"trial start: in-flight record at {fp} has {k}={record.get(k)!r}, "
+                    f"but args have {k}={v!r}. Remove the stale record before retrying.",
+                    file=sys.stderr,
+                )
+                return 2
     else:
         record = {
             "trial_id": _trial_id(args.run, args.arm, slug),
@@ -271,11 +295,21 @@ def cmd_end(args) -> int:
         )
         return 2
     run_id, arm, slug = parts
-    fp = _in_flight_path(run_id, slug)
+    fp = _in_flight_path(run_id, arm, slug)
     if not fp.exists():
         print(f"trial end: no in-flight record at {fp}", file=sys.stderr)
         return 1
     in_flight = json.loads(fp.read_text(encoding="utf-8"))
+
+    # Defensive: the filename already pins arm, but a hand-edited record
+    # could disagree with its container. Refuse rather than misfile.
+    if in_flight.get("arm") != arm:
+        print(
+            f"trial end: in-flight arm {in_flight.get('arm')!r} does not match "
+            f"trial-id arm {arm!r}; refusing to write cell.",
+            file=sys.stderr,
+        )
+        return 2
 
     sidechain = _find_sidechain(in_flight)
     if sidechain is None:

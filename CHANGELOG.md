@@ -14,7 +14,7 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
   subcommands — `start` (stamps in-flight metadata + `start_time`,
   reads `CLAUDE_CODE_SESSION_ID`, prints a `trial_id`) and `end` (reads
   the subagent's sidechain transcript at
-  `~/.claude/projects/<encoded_cwd>/<session>/subagents/agent-*.jsonl`,
+  `$HOME/.claude/projects/<encoded_cwd>/<session>/subagents/agent-*.jsonl`,
   parses the real CC schema, and writes the cell JSON). Operator
   workflow per trial becomes `trial start → dispatch Agent → trial end`.
   The previous `SubagentStop` hook + `capture.py` chain parsed a stale
@@ -26,6 +26,15 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
   `trial end` per dispatch instead of `capture` after dispatch.
 - `docs/eval-rounds/2026-05-15-round-01.md` preflight points at
   `switch-arm.sh` for env + skill-state setup.
+- Deleted `experiments/scripts_eval/capture.py` (replaced by `trial.py`)
+  and `experiments/scripts_eval/hooks/subagent_stop.py` (replaced by
+  `trial end`); their tests
+  (`tests/scripts_eval/test_capture.py`,
+  `tests/scripts_eval/test_hooks_subagent_stop.py`) went with them. The
+  fake-schema fixtures
+  `tests/scripts_eval/fixtures/{transcript_min,transcript_with_late_msg}.jsonl`
+  — which made the broken hook's tests pass — are also gone. The
+  `SubagentStop` hook entry was dropped from `.claude/settings.json`.
 
 ### Added
 
@@ -39,23 +48,12 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
   sidechain transcripts. Used to recover the 6 round-01
   `agtag/q-profile-overview` cells. Matches each cell to its sidechain
   via the CC-emitted `<agent>.meta.json` description (e.g.
-  `Arm-A t1: agtag profile`); skips judge dispatches whose description
-  starts with `scripts_eval judge:`.
+  `Arm-A t1: agtag profile`) plus a corpus-aware (target, question)
+  identification from the sidechain's first user prompt; skips judge
+  dispatches whose description starts with `scripts_eval judge:`.
 - `tests/scripts_eval/fixtures/sidechain_min.jsonl` — sanitized real
   CC subagent sidechain transcript, the canonical fixture for extraction
   tests.
-
-### Removed
-
-- `experiments/scripts_eval/capture.py` — replaced by `trial.py`.
-- `experiments/scripts_eval/hooks/subagent_stop.py` — replaced by
-  `trial end`.
-- `tests/scripts_eval/test_capture.py`,
-  `tests/scripts_eval/test_hooks_subagent_stop.py` — tests for the
-  removed modules.
-- `tests/scripts_eval/fixtures/{transcript_min,transcript_with_late_msg}.jsonl`
-  — fake-schema fixtures that made the broken hook's tests pass.
-- `.claude/settings.json`: the `SubagentStop` hook entry.
 
 ### Fixed
 

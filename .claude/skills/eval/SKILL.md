@@ -104,7 +104,7 @@ uv run --group experiments python -m experiments.scripts_eval.manifest \
 
 5. After the subagent finishes, end the trial. The script reads the
    subagent's sidechain transcript from
-   `~/.claude/projects/<encoded_cwd>/<session>/subagents/agent-*.jsonl`
+   `$HOME/.claude/projects/<encoded_cwd>/<session>/subagents/agent-*.jsonl`
    and writes the cell JSON:
 
    ```bash
