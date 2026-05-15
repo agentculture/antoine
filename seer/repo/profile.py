@@ -328,11 +328,9 @@ def _build_test(pyproject: dict | None) -> dict | None:
     """
     if pyproject is None:
         return None
-    pytest_opts = (pyproject.get("tool") or {})
+    pytest_opts = pyproject.get("tool") or {}
     pytest_addopts = ((pytest_opts.get("pytest") or {}).get("ini_options") or {}).get("addopts")
-    coverage_fail = (
-        ((pytest_opts.get("coverage") or {}).get("report") or {}).get("fail_under")
-    )
+    coverage_fail = ((pytest_opts.get("coverage") or {}).get("report") or {}).get("fail_under")
     python_requires = (pyproject.get("project") or {}).get("requires-python")
     result: dict = {"test_command": "pytest"}
     if pytest_addopts is not None:
@@ -361,11 +359,7 @@ def _ci_workflows(path: Path) -> list[dict[str, str]]:
         if m:
             raw_name = m.group(1).strip()
             # strip enclosing quotes
-            if (
-                len(raw_name) >= 2
-                and raw_name[0] in ('"', "'")
-                and raw_name[-1] == raw_name[0]
-            ):
+            if len(raw_name) >= 2 and raw_name[0] in ('"', "'") and raw_name[-1] == raw_name[0]:
                 raw_name = raw_name[1:-1]
             name = raw_name
         else:
@@ -467,9 +461,7 @@ def _git_remote(path: Path) -> dict | None:
     return {"host": host, "owner": owner, "repo": repo_name, "url": raw_url, "ref": "origin"}
 
 
-def _collect_module_files(
-    node: dict, base_path: Path, pkg_path: Path
-) -> list[tuple[str, Path]]:
+def _collect_module_files(node: dict, base_path: Path, pkg_path: Path) -> list[tuple[str, Path]]:
     """Recursively collect (relative_path_str, abs_path) pairs from a package_tree node."""
     results: list[tuple[str, Path]] = []
     for mod in node.get("modules") or []:
@@ -489,13 +481,11 @@ def _module_docs(path: Path, package_tree: list[dict]) -> list[dict]:
         pkg_root = Path(node["name"])
         # Check if this package lives under src/
         candidate_src = path / "src" / node["name"]
-        candidate_root = path / node["name"]
         if candidate_src.is_dir():
             base_path = path / "src"
-            pkg_path = pkg_root
         else:
             base_path = path
-            pkg_path = pkg_root
+        pkg_path = pkg_root
         for rel_str, abs_path in _collect_module_files(node, base_path, pkg_path):
             try:
                 source = abs_path.read_text(encoding="utf-8")

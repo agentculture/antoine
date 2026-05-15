@@ -342,7 +342,13 @@ def test_render_profile_markdown_section_ordering() -> None:
     fx["build_test"] = {"test_command": "pytest"}
     fx["ci_workflows"] = [{"file": "tests.yml", "name": "Tests"}]
     fx["publish_target"] = {"kind": "pypi", "workflow": "publish.yml", "trigger": "push: tags"}
-    fx["git_remote"] = {"host": "github.com", "owner": "x", "repo": "y", "url": "u", "ref": "origin"}
+    fx["git_remote"] = {
+        "host": "github.com",
+        "owner": "x",
+        "repo": "y",
+        "url": "u",
+        "ref": "origin",
+    }
     fx["module_summaries"] = [{"module": "x.py", "summary": "X."}]
     md = render_profile_markdown(fx)
     # Extract positions of all expected section headings
