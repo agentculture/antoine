@@ -136,7 +136,18 @@ questions:
       Map the repos in {workspace_root}. Which ones form clusters
       (by shared dependencies, vendored skills, or cite-don't-import
       edges), and how are they related?
-    expected_evidence: {}
+    expected_evidence:
+      _global:
+        - /agentculture/i
+        - "steward"
+        - "culture"
+        - "daria"
+        - "irc-lens"
+        - "vendor"
+        - "reachy_nova"
+        - "reachy_mini"
+        - "jetson"
+        - "29 repos"
 
   - id: q-narrative
     type: narrative
