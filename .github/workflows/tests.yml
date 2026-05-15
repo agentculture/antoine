@@ -11,10 +11,13 @@ jobs:
     runs-on: ubuntu-latest
     permissions:
       contents: read
-    # Promote a presence flag (not the secret) to job env so the SonarCloud
-    # step can gate on it — secrets.* isn't allowed in `if:`.
+    # Promote SONAR_TOKEN to job env so the SonarCloud step can gate on
+    # `env.SONAR_TOKEN != ''` — `secrets.*` isn't allowed in `if:`. This
+    # makes the step a no-op on fork PRs (where the secret isn't injected)
+    # and on any repo that hasn't configured the token yet, instead of
+    # failing the whole job. Mirrors agentculture/steward.
     env:
-      SONAR_TOKEN_PRESENT: ${{ secrets.SONAR_TOKEN != '' }}
+      SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
     steps:
       - uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4
         with:
@@ -27,18 +30,47 @@ jobs:
 
       - run: uv sync
 
-      - run: uv run flake8 --config=.flake8 seer/ tests/
-
-      - run: uv run bandit -r seer/ -c pyproject.toml
-
       - run: uv run pytest -n auto --cov=seer --cov-report=xml:coverage.xml --cov-report=term -v
 
       - name: SonarCloud Scan
-        if: env.SONAR_TOKEN_PRESENT == 'true'
+        if: env.SONAR_TOKEN != ''
         uses: SonarSource/sonarqube-scan-action@fd88b7d7ccbaefd23d8f36f73b59db7a3d246602 # v6
         env:
-          SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
           SONAR_HOST_URL: https://sonarcloud.io
+
+  lint:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4
+
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4
+        with:
+          node-version: '20'
+
+      - uses: astral-sh/setup-uv@38f3f104447c67c051c4a08e39b64a148898af3a # v4
+
+      - run: uv python install 3.12
+
+      - run: uv sync
+
+      - name: black --check
+        run: uv run black --check seer tests
+
+      - name: isort --check
+        run: uv run isort --check-only seer tests
+
+      - name: flake8
+        run: uv run flake8 --config=.flake8 seer/ tests/
+
+      - name: bandit
+        run: uv run bandit -c pyproject.toml -r seer
+
+      - name: markdownlint-cli2
+        run: |
+          npm install -g markdownlint-cli2@0.21.0
+          markdownlint-cli2 "**/*.md" "#node_modules" "#.local"
 
   version-check:
     # Only run on PR events. On push to main the comparison would always
