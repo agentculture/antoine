@@ -4,6 +4,7 @@ from __future__ import annotations
 
 from seer.cli._errors import SeerError
 from seer.repo.render import (
+    render_connections_markdown,
     render_error_markdown,
     render_profile_markdown,
 )
@@ -100,3 +101,47 @@ def test_render_error_markdown() -> None:
     assert "**Reason:**" in md
     assert "**Remediation:**" in md
     assert "Exit code: 1 (user error)" in md
+
+
+def test_render_connections_markdown_basic() -> None:
+    walk_data = {
+        "seed": "/home/user/projects/alpha",
+        "seed_name": "alpha",
+        "depth": 1,
+        "nodes": [
+            {"id": "alpha", "path": "/home/user/projects/alpha", "external": False},
+            {"id": "beta", "path": "/home/user/projects/beta", "external": False},
+            {"id": "external-pkg", "path": None, "external": True},
+        ],
+        "edges": [
+            {"from": "alpha", "to": "beta", "type": "import", "spec": "*"},
+            {"from": "alpha", "to": "external-pkg", "type": "import", "spec": "*"},
+        ],
+        "walk_errors": [],
+    }
+    md = render_connections_markdown(walk_data)
+    assert "alpha — connections (depth 1)" in md
+    assert "## Imports (2)" in md
+    assert "(/home/user/projects/beta)" in md
+    assert "(external)" in md
+
+
+def test_render_connections_markdown_inlines_errors() -> None:
+    walk_data = {
+        "seed": "/home/user/projects/alpha",
+        "seed_name": "alpha",
+        "depth": 1,
+        "nodes": [{"id": "alpha", "path": "/home/user/projects/alpha", "external": False}],
+        "edges": [],
+        "walk_errors": [
+            {
+                "node": "beta (/home/user/projects/beta)",
+                "reason": "TOML syntax error.",
+                "remediation": "validate the file.",
+            }
+        ],
+    }
+    md = render_connections_markdown(walk_data)
+    assert "## Errors during walk (1)" in md
+    assert "**beta (/home/user/projects/beta)**" in md
+    assert "TOML syntax error." in md

@@ -170,3 +170,74 @@ def render_error_markdown(err: SeerError) -> str:
     lines.append("")
     lines.append(f"Exit code: {err.code} ({label})")
     return "\n".join(lines) + "\n"
+
+
+def _append_edge_section(
+    lines: list[str],
+    label: str,
+    es: list[dict[str, str]],
+    nodes_by_id: dict[str, Any],
+) -> None:
+    """Append one typed edge group (imports / citations / vendored) to *lines*."""
+    lines.append("")
+    lines.append(f"## {label} ({len(es)})")
+    for edge in es:
+        target = edge["to"]
+        node = nodes_by_id.get(target, {})
+        loc = node.get("path")
+        tag = f"({loc})" if loc else "(external)"
+        spec = edge.get("spec") or ""
+        spec_suffix = f" {spec}" if spec else ""
+        lines.append(f"- {target} {tag}{spec_suffix}")
+
+
+def _append_walk_errors(lines: list[str], errors: list[dict[str, str]]) -> None:
+    """Append the walk-errors section to *lines*."""
+    lines.append("")
+    lines.append(f"## Errors during walk ({len(errors)})")
+    for err in errors:
+        lines.append("")
+        lines.append(f"**{err.get('node', '')}**")
+        if err.get("reason"):
+            lines.append(f"- Reason: {err['reason']}")
+        if err.get("remediation"):
+            lines.append(f"- Remediation: {err['remediation']}")
+
+
+def render_connections_markdown(walk: dict[str, Any]) -> str:
+    """Render a connections-walk dict as a markdown report."""
+    name = walk.get("seed_name") or "(unknown)"
+    depth = walk.get("depth")
+    lines: list[str] = []
+    lines.append(f"# {name} — connections (depth {depth})")
+    seed_path = walk.get("seed")
+    if seed_path:
+        lines.append(f"Seed: {seed_path}")
+
+    edges = walk.get("edges") or []
+    nodes_by_id: dict[str, Any] = {n["id"]: n for n in (walk.get("nodes") or [])}
+
+    by_type: dict[str, list[dict[str, str]]] = {}
+    for edge in edges:
+        by_type.setdefault(edge["type"], []).append(edge)
+
+    for kind, label in [
+        ("import", "Imports"),
+        ("cite", "Citations"),
+        ("vendor", "Vendored skills"),
+    ]:
+        edge_group = by_type.get(kind)
+        if edge_group:
+            _append_edge_section(lines, label, edge_group, nodes_by_id)
+
+    errors = walk.get("walk_errors") or []
+    if errors:
+        _append_walk_errors(lines, errors)
+
+    internal = sum(1 for n in nodes_by_id.values() if not n.get("external"))
+    external = sum(1 for n in nodes_by_id.values() if n.get("external"))
+    lines.append("")
+    lines.append("## Summary")
+    lines.append(f"{internal} internal node(s), {external} external; {len(edges)} edge(s) total.")
+
+    return "\n".join(lines) + "\n"
