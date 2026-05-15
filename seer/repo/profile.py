@@ -68,6 +68,7 @@ def profile_shallow(path: Path) -> dict[str, object]:
 
 
 _PKG_EXCLUDE = {"tests", "docs", "scripts", "__pycache__"}
+_INIT_PY = "__init__.py"
 
 
 def _list_packages(path: Path) -> list[str]:
@@ -76,12 +77,12 @@ def _list_packages(path: Path) -> list[str]:
     for child in sorted(path.iterdir()):
         if not child.is_dir() or child.name.startswith(".") or child.name in _PKG_EXCLUDE:
             continue
-        if (child / "__init__.py").exists():
+        if (child / _INIT_PY).exists():
             out.append(child.name + "/")
     src = path / "src"
     if src.is_dir():
         for child in sorted(src.iterdir()):
-            if child.is_dir() and (child / "__init__.py").exists():
+            if child.is_dir() and (child / _INIT_PY).exists():
                 out.append(f"src/{child.name}/")
     return out
 
@@ -96,7 +97,7 @@ def _package_node(pkg_dir: Path, *, remaining_depth: int) -> dict[str, object]:
         if child.is_file() and child.suffix == ".py":
             modules.append(child.name)
             continue
-        if child.is_dir() and (child / "__init__.py").exists() and remaining_depth > 0:
+        if child.is_dir() and (child / _INIT_PY).exists() and remaining_depth > 0:
             subpackages.append(_package_node(child, remaining_depth=remaining_depth - 1))
     return {"name": pkg_dir.name, "modules": modules, "subpackages": subpackages}
 
@@ -115,12 +116,12 @@ def _package_tree(path: Path, *, max_depth: int = 2) -> list[dict[str, object]]:
     for child in sorted(path.iterdir()):
         if not child.is_dir() or child.name.startswith(".") or child.name in _PKG_EXCLUDE:
             continue
-        if (child / "__init__.py").exists():
+        if (child / _INIT_PY).exists():
             out.append(_package_node(child, remaining_depth=max_depth))
     src = path / "src"
     if src.is_dir():
         for child in sorted(src.iterdir()):
-            if child.is_dir() and (child / "__init__.py").exists():
+            if child.is_dir() and (child / _INIT_PY).exists():
                 out.append(_package_node(child, remaining_depth=max_depth))
     return out
 

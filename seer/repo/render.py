@@ -120,28 +120,37 @@ def _append_extra(lines: list[str], extra: dict[str, Any]) -> None:
         lines.append(f"- **{k}:** {v}")
 
 
-def _append_shallow_sections(lines: list[str], profile: dict[str, Any]) -> None:
-    """Append every populated shallow-profile section to *lines*.
-
-    The body is a flat sequence of "if this section has content, render it"
-    calls; each per-section appender keeps its own complexity small.
-    """
-    if deps := profile.get("deps_runtime") or []:
-        _append_deps_runtime(lines, deps)
+def _render_package_layout_section(lines: list[str], profile: dict[str, Any]) -> None:
+    """Render the package-layout section from either the nested tree or the flat list."""
     layout = profile.get("package_layout") or []
     tree = profile.get("package_tree") or []
     if layout or tree:
         _append_package_layout(lines, layout, tree)
-    if skills := profile.get("vendored_skills") or []:
-        _append_skill_table(lines, skills)
-    if citations := profile.get("citations") or []:
-        _append_citation_table(lines, citations)
-    if changelog := profile.get("changelog_recent") or []:
-        _append_changelog(lines, changelog)
-    if status := profile.get("claude_md_status") or "":
-        _append_project_status(lines, status)
-    if extra := profile.get("extra") or {}:
-        _append_extra(lines, extra)
+
+
+# Each entry renders one shallow-profile section, in display order. Most entries
+# are a ``(profile-key, appender)`` pair — append iff the value is truthy.
+# The package-layout slot uses a custom thunk because it pulls from two keys.
+_SHALLOW_RENDERERS: list[Any] = [
+    ("deps_runtime", _append_deps_runtime),
+    _render_package_layout_section,
+    ("vendored_skills", _append_skill_table),
+    ("citations", _append_citation_table),
+    ("changelog_recent", _append_changelog),
+    ("claude_md_status", _append_project_status),
+    ("extra", _append_extra),
+]
+
+
+def _append_shallow_sections(lines: list[str], profile: dict[str, Any]) -> None:
+    """Append every populated shallow-profile section to *lines*, in display order."""
+    for entry in _SHALLOW_RENDERERS:
+        if callable(entry):
+            entry(lines, profile)
+            continue
+        key, append = entry
+        if value := profile.get(key):
+            append(lines, value)
 
 
 def _append_deep_sections(lines: list[str], profile: dict[str, Any]) -> None:

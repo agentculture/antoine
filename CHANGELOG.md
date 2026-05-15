@@ -77,6 +77,7 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
   `repo-map` — appropriate behavior for an overview question on a small
   repo, per the established evaluation framing (skill should be reached
   for when needed, not unconditionally).
+
 ## [0.3.3] - 2026-05-15
 
 ### Changed
