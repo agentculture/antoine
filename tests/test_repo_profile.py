@@ -354,6 +354,58 @@ def test_profile_shallow_publish_target_ghcr(tmp_path: Path) -> None:
     assert pt["workflow"] == "docker.yml"
 
 
+def test_profile_shallow_git_remote_ssh(tmp_path: Path) -> None:
+    """git_remote parses SSH origin URL into host/owner/repo."""
+    repo = tmp_path / "demo"
+    repo.mkdir()
+    (repo / "pyproject.toml").write_text('[project]\nname = "demo"\n')
+    _git = ["git", "-C", str(repo)]  # noqa: S607
+    subprocess.run([*_git, "init", "-q"], check=True)  # noqa: S607
+    subprocess.run([*_git, "config", "user.email", "x@y"], check=True)  # noqa: S607
+    subprocess.run([*_git, "config", "user.name", "x"], check=True)  # noqa: S607
+    subprocess.run(
+        [*_git, "remote", "add", "origin", "git@github.com:agentculture/agtag.git"],
+        check=True,
+    )  # noqa: S607
+    p = profile_shallow(repo)
+    gr = p["git_remote"]
+    assert gr is not None
+    assert gr["host"] == "github.com"
+    assert gr["owner"] == "agentculture"
+    assert gr["repo"] == "agtag"
+    assert gr["ref"] == "origin"
+
+
+def test_profile_shallow_git_remote_https(tmp_path: Path) -> None:
+    """git_remote parses HTTPS origin URL into host/owner/repo."""
+    repo = tmp_path / "demo2"
+    repo.mkdir()
+    (repo / "pyproject.toml").write_text('[project]\nname = "demo2"\n')
+    _git = ["git", "-C", str(repo)]  # noqa: S607
+    subprocess.run([*_git, "init", "-q"], check=True)  # noqa: S607
+    subprocess.run([*_git, "config", "user.email", "x@y"], check=True)  # noqa: S607
+    subprocess.run([*_git, "config", "user.name", "x"], check=True)  # noqa: S607
+    subprocess.run(
+        [*_git, "remote", "add", "origin", "https://github.com/agentculture/agtag.git"],
+        check=True,
+    )  # noqa: S607
+    p = profile_shallow(repo)
+    gr = p["git_remote"]
+    assert gr is not None
+    assert gr["host"] == "github.com"
+    assert gr["owner"] == "agentculture"
+    assert gr["repo"] == "agtag"
+
+
+def test_profile_shallow_git_remote_no_git(tmp_path: Path) -> None:
+    """git_remote is None when no .git directory exists."""
+    repo = tmp_path / "no-git"
+    repo.mkdir()
+    (repo / "pyproject.toml").write_text('[project]\nname = "no-git"\n')
+    p = profile_shallow(repo)
+    assert p["git_remote"] is None
+
+
 def test_profile_shallow_publish_target_none(tmp_path: Path) -> None:
     """publish_target is None when no pypi/ghcr workflows are found."""
     repo = tmp_path / "demo"
