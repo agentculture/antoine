@@ -96,3 +96,70 @@ def test_classify_polyglot_both_python_and_node_tags(tmp_path: Path) -> None:
     assert "node" in tag_names
     assert result["language"] == "python"
     assert result["manifest"] == "pyproject.toml"
+
+
+def test_classify_python_cli_with_entry_point(tmp_path: Path) -> None:
+    repo = tmp_path / "tool"
+    repo.mkdir()
+    (repo / "pyproject.toml").write_text(
+        '[project]\nname = "tool"\nversion = "0.1.0"\n'
+        '[project.scripts]\ntool = "tool.cli:main"\n'
+    )
+    result = classify(repo)
+    tag_names = [t["name"] for t in result["tags"]]
+    assert "cli" in tag_names
+    cli_tag = next(t for t in result["tags"] if t["name"] == "cli")
+    assert "tool" in cli_tag["evidence"]
+    assert "tool.cli:main" in cli_tag["evidence"]
+
+
+def test_classify_node_cli_with_bin(tmp_path: Path) -> None:
+    repo = tmp_path / "ncli"
+    repo.mkdir()
+    (repo / "package.json").write_text('{"name": "ncli", "bin": {"ncli": "./cli.js"}}')
+    result = classify(repo)
+    tag_names = [t["name"] for t in result["tags"]]
+    assert "cli" in tag_names
+    cli_tag = next(t for t in result["tags"] if t["name"] == "cli")
+    assert "ncli" in cli_tag["evidence"]
+
+
+def test_classify_python_library_fires_library_tag(tmp_path: Path) -> None:
+    repo = tmp_path / "lib"
+    repo.mkdir()
+    (repo / "pyproject.toml").write_text('[project]\nname = "lib"\n')
+    pkg = repo / "lib"
+    pkg.mkdir()
+    (pkg / "__init__.py").write_text("")
+    result = classify(repo)
+    tag_names = [t["name"] for t in result["tags"]]
+    assert "library" in tag_names
+    lib_tag = next(t for t in result["tags"] if t["name"] == "library")
+    assert "lib/__init__.py" in lib_tag["evidence"]
+
+
+def test_classify_library_src_layout(tmp_path: Path) -> None:
+    repo = tmp_path / "srclib"
+    repo.mkdir()
+    (repo / "pyproject.toml").write_text('[project]\nname = "srclib"\n')
+    pkg = repo / "src" / "srclib"
+    pkg.mkdir(parents=True)
+    (pkg / "__init__.py").write_text("")
+    result = classify(repo)
+    tag_names = [t["name"] for t in result["tags"]]
+    assert "library" in tag_names
+    lib_tag = next(t for t in result["tags"] if t["name"] == "library")
+    assert "src/srclib/__init__.py" in lib_tag["evidence"]
+
+
+def test_classify_library_without_scripts_no_cli_tag(tmp_path: Path) -> None:
+    repo = tmp_path / "libnocli"
+    repo.mkdir()
+    (repo / "pyproject.toml").write_text('[project]\nname = "libnocli"\n')
+    pkg = repo / "libnocli"
+    pkg.mkdir()
+    (pkg / "__init__.py").write_text("")
+    result = classify(repo)
+    tag_names = [t["name"] for t in result["tags"]]
+    assert "library" in tag_names
+    assert "cli" not in tag_names

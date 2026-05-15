@@ -84,7 +84,45 @@ def _rule_bash(ctx: _Context) -> dict[str, str] | None:
     }
 
 
-_RULES = [_rule_python, _rule_node, _rule_bash]
+def _rule_cli(ctx: _Context) -> dict[str, str] | None:
+    # Python: [project.scripts] non-empty.
+    if ctx.pyproject is not None:
+        scripts = (ctx.pyproject.get("project", {}) or {}).get("scripts", {}) or {}
+        if scripts:
+            entries = ", ".join(f'{k} = "{v}"' for k, v in scripts.items())
+            return {"name": "cli", "evidence": f"[project.scripts] defines {entries}"}
+    # Node: package.json `bin` non-empty (object or string).
+    if ctx.package_json is not None:
+        bin_field = ctx.package_json.get("bin")
+        if bin_field:
+            if isinstance(bin_field, dict):
+                names = ", ".join(bin_field.keys())
+            else:
+                names = ctx.package_json.get("name", "<unnamed>")
+            return {"name": "cli", "evidence": f"package.json bin defines {names}"}
+    return None
+
+
+def _rule_library(ctx: _Context) -> dict[str, str] | None:
+    """Importable Python package: `<name>/__init__.py` or `src/<name>/__init__.py`."""
+    if ctx.pyproject is None:
+        return None
+    name = (ctx.pyproject.get("project", {}) or {}).get("name")
+    if not name:
+        return None
+    # PyPI normalises hyphen vs underscore; check both possible package dir names.
+    candidates = [name, name.replace("-", "_")]
+    for candidate in candidates:
+        flat = ctx.path / candidate / "__init__.py"
+        if flat.exists():
+            return {"name": "library", "evidence": f"`{candidate}/__init__.py` present"}
+        nested = ctx.path / "src" / candidate / "__init__.py"
+        if nested.exists():
+            return {"name": "library", "evidence": f"`src/{candidate}/__init__.py` present"}
+    return None
+
+
+_RULES = [_rule_python, _rule_node, _rule_bash, _rule_cli, _rule_library]
 
 
 def _path_not_found_error(p: Path) -> SeerError:
