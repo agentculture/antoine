@@ -66,6 +66,38 @@ blocks merge if it matches `main`) and prepends a `CHANGELOG.md` entry
 Provenance and divergence are tracked in `docs/skill-sources.md`. Re-sync
 from `../steward/.claude/skills/<name>/`.
 
+## Experimental harness
+
+`experiments/scripts_eval/` is the round-1 A/B-test harness for the
+`repo-map` skill. The three Claude Code hooks wired in
+`.claude/settings.json` are **env-var-gated** (`SEER_EVAL_RUN_ID`,
+`SEER_EVAL_ARM`) and no-op outside an active eval session, so
+day-to-day seer-cli work is unaffected.
+
+When asked to run an eval round, work the harness, or interpret its
+results, read these in order:
+
+1. [`experiments/scripts_eval/README.md`](experiments/scripts_eval/README.md)
+   — what / why / repeatability for fresh contributors.
+2. [`experiments/scripts_eval/RUNBOOK.md`](experiments/scripts_eval/RUNBOOK.md)
+   — operator procedure (per-cell loop, two arm sessions, violation
+   handling).
+3. [`docs/superpowers/specs/2026-05-15-scripts-eval-harness-design.md`](docs/superpowers/specs/2026-05-15-scripts-eval-harness-design.md)
+   — design rationale and open questions.
+4. [`docs/superpowers/plans/2026-05-15-scripts-eval-harness.md`](docs/superpowers/plans/2026-05-15-scripts-eval-harness.md)
+   — the full TDD implementation plan that built it.
+
+Install the harness's deps with `uv sync --group experiments` (adds
+`anthropic` for the LLM-as-judge and `jsonschema` for corpus
+validation). Tests live under `tests/scripts_eval/` and run as part of
+the normal `uv run pytest` suite.
+
+The harness gates the planned redesign of the `learn` / `explain` /
+`whoami` placeholder verbs into `learn` / `explain` / `overview` /
+`doctor`. **That verb redesign is intentionally a follow-up
+brainstorm** — fed by the eval results, not by the harness's
+existence.
+
 ## Workspace Context
 
 The GitHub remote is `agentculture/seer-cli`. When opening PRs or posting comments here as an AI assistant, sign them so it's clear they're AI-authored — e.g. `- seer (Claude)`.
