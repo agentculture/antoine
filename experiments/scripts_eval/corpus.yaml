@@ -30,7 +30,16 @@ questions:
       You are exploring the repository at {repo_path}.
       Give me a clear overview: what is this repo for, what is the
       build/test story, what are its top-level components.
-    expected_evidence: {}
+    expected_evidence:
+      culture:
+        - pyproject.toml
+        - "uv sync"
+        - culture.yaml
+        - "async IRCd"
+        - "agent harness"
+        - "claude-agent-sdk"
+        - "pytest -n auto"
+        - "culture.cli:main"
 
   - id: q-connections-1hop
     type: connections
@@ -38,7 +47,16 @@ questions:
     template: |
       What does the repository at {repo_path} connect to (depend on,
       vendor from, or get cited by)? Walk one hop out.
-    expected_evidence: {}
+    expected_evidence:
+      culture:
+        - agentirc-cli
+        - cultureagent
+        - anthropic
+        - "claude-agent-sdk"
+        - agtag
+        - "opentelemetry"
+        - cicd
+        - version-bump
 
   - id: q-graph-workspace
     type: graph
@@ -56,7 +74,15 @@ questions:
       Explain to me how the repository at {repo_path} works.
       Walk me through the main flow end-to-end. Be concrete: name files
       and functions where relevant.
-    expected_evidence: {}
+    expected_evidence:
+      culture:
+        - "culture/cli/__init__.py"
+        - "culture/cli/server.py"
+        - "culture/observer.py"
+        - "culture/protocol/"
+        - "culture/bots/"
+        - "culture/persistence.py"
+        - "culture.cli:main"
 
   - id: q-transfer-cli
     type: transfer
@@ -65,7 +91,15 @@ questions:
       The repository at {repo_path} has a CLI. Explain how I could
       build something like it in my own Python repo. Be concrete: what
       files, what entry points, what conventions, what packaging.
-    expected_evidence: {}
+    expected_evidence:
+      culture:
+        - "[project.scripts]"
+        - "culture.cli:main"
+        - pyproject.toml
+        - hatchling
+        - "culture/cli/__init__.py"
+        - subcommand
+        - "uv sync"
 
   - id: q-transfer-quality
     type: transfer
@@ -74,4 +108,13 @@ questions:
       The repository at {repo_path} has a CI / quality pipeline.
       What do I need to add to a generic Python repo to get the same
       pipeline (lint, test, security, version-bump enforcement)?
-    expected_evidence: {}
+    expected_evidence:
+      culture:
+        - "tests.yml"
+        - "security-checks.yml"
+        - bandit
+        - pylint
+        - flake8
+        - "pytest-cov"
+        - SonarCloud
+        - version-check
