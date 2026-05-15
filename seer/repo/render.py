@@ -204,6 +204,80 @@ def _append_walk_errors(lines: list[str], errors: list[dict[str, str]]) -> None:
             lines.append(f"- Remediation: {err['remediation']}")
 
 
+def _append_node_list(lines: list[str], nodes: list[dict[str, Any]]) -> None:
+    """Append internal repo list items to *lines*."""
+    for node in nodes:
+        v = node.get("version") or ""
+        v_suffix = f" — {v}" if v else ""
+        lines.append(f"- **{node['id']}** ({node.get('path', '')}){v_suffix}")
+
+
+def _append_external_list(lines: list[str], nodes: list[dict[str, Any]]) -> None:
+    """Append external target list items to *lines*."""
+    for node in nodes:
+        lines.append(f"- {node['id']}")
+
+
+def _append_graph_edges(
+    lines: list[str],
+    by_type: dict[str, list[dict[str, str]]],
+) -> None:
+    """Append typed edge sections to *lines*."""
+    for kind, label in [
+        ("import", "Import edges"),
+        ("cite", "Citation edges"),
+        ("vendor", "Vendor edges"),
+    ]:
+        es = by_type.get(kind)
+        if not es:
+            continue
+        lines.append("")
+        lines.append(f"## {label} ({len(es)})")
+        for edge in es:
+            spec = edge.get("spec") or ""
+            spec_suffix = f" {spec}" if spec else ""
+            lines.append(f"- {edge['from']} → {edge['to']}{spec_suffix}")
+
+
+def render_graph_markdown(graph: dict[str, Any]) -> str:
+    """Render a workspace-graph dict as a markdown report including mermaid."""
+    lines: list[str] = []
+    roots = graph.get("roots") or []
+    lines.append("# Workspace graph")
+    if roots:
+        lines.append("Roots: " + ", ".join(roots))
+
+    nodes = graph.get("nodes") or []
+    internal = [n for n in nodes if not n.get("external")]
+    external = [n for n in nodes if n.get("external")]
+
+    if internal:
+        lines.append("")
+        lines.append(f"## Repos ({len(internal)})")
+        _append_node_list(lines, internal)
+
+    if external:
+        lines.append("")
+        lines.append(f"## External targets ({len(external)})")
+        _append_external_list(lines, external)
+
+    edges = graph.get("edges") or []
+    by_type: dict[str, list[dict[str, str]]] = {}
+    for edge in edges:
+        by_type.setdefault(edge["type"], []).append(edge)
+    _append_graph_edges(lines, by_type)
+
+    mermaid = graph.get("mermaid") or ""
+    if mermaid:
+        lines.append("")
+        lines.append("## Mermaid")
+        lines.append("```mermaid")
+        lines.append(mermaid.rstrip())
+        lines.append("```")
+
+    return "\n".join(lines) + "\n"
+
+
 def render_connections_markdown(walk: dict[str, Any]) -> str:
     """Render a connections-walk dict as a markdown report."""
     name = walk.get("seed_name") or "(unknown)"

@@ -6,6 +6,7 @@ from seer.cli._errors import SeerError
 from seer.repo.render import (
     render_connections_markdown,
     render_error_markdown,
+    render_graph_markdown,
     render_profile_markdown,
 )
 
@@ -145,3 +146,25 @@ def test_render_connections_markdown_inlines_errors() -> None:
     assert "## Errors during walk (1)" in md
     assert "**beta (/home/user/projects/beta)**" in md
     assert "TOML syntax error." in md
+
+
+def test_render_graph_markdown_includes_mermaid() -> None:
+    g = {
+        "roots": ["/home/user/projects"],
+        "nodes": [
+            {
+                "id": "alpha",
+                "path": "/home/user/projects/alpha",
+                "external": False,
+                "version": "1.0",
+            },
+            {"id": "beta", "path": "/home/user/projects/beta", "external": False, "version": "2.0"},
+        ],
+        "edges": [{"from": "alpha", "to": "beta", "type": "import", "spec": "*"}],
+        "mermaid": "graph TD\n  alpha --> beta\n",
+    }
+    md = render_graph_markdown(g)
+    assert "# Workspace graph" in md
+    assert "alpha" in md and "beta" in md
+    assert "```mermaid" in md
+    assert "graph TD" in md
