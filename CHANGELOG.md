@@ -5,6 +5,16 @@ All notable changes to this project will be documented in this file.
 Format follows [Keep a Changelog](https://keepachangelog.com/). This project
 adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.3.2] - 2026-05-15
+
+### Added
+
+- scripts-eval: `eval` skill (`.claude/skills/eval/SKILL.md`) — locks the operator procedure for running one set of the harness (one `(target, question)` row × 3 trials × one arm) as a reusable, round-agnostic skill. Reads `$SEER_EVAL_RUN_ID` and writes to `docs/eval-rounds/$SEER_EVAL_RUN_ID.md`, so it serves round 01 today and future rounds without modification. Bundles the preflight checks (env vars, `repo-map` skill state, manifest init), arm-A/arm-C procedures, the judge-subagent dispatch contract (`description: scripts_eval judge: <pair_key>`), and the post-set summarize + commit. Listed in `docs/skill-sources.md` as a seer-cli-original skill (like `repo-map`).
+
+### Changed
+
+- docs/eval-rounds/2026-05-15-round-01.md trimmed to round-specific bits only (run metadata, preflight, paste templates, evidence accumulator). The procedure now lives in the `eval` skill — single source of truth, picked up automatically when an operator session triggers the skill.
+
 ## [0.3.1] - 2026-05-15
 
 ### Added
