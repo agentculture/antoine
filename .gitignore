@@ -226,3 +226,9 @@ __marimo__/
 # scripts-eval results — runs are local artefacts, not checked in.
 experiments/scripts_eval/results/*
 !experiments/scripts_eval/results/.gitkeep
+
+# agex per-machine PR event log
+.agex/
+
+# Claude Code per-machine scheduler lock
+.claude/scheduled_tasks.lock

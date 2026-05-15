@@ -5,6 +5,67 @@ All notable changes to this project will be documented in this file.
 Format follows [Keep a Changelog](https://keepachangelog.com/). This project
 adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.4.0] - 2026-05-15
+
+### Changed
+
+- **scripts-eval: replaced hook-driven cell capture with operator-driven
+  `trial.py`.** The new `experiments/scripts_eval/trial.py` exposes two
+  subcommands — `start` (stamps in-flight metadata + `start_time`,
+  reads `CLAUDE_CODE_SESSION_ID`, prints a `trial_id`) and `end` (reads
+  the subagent's sidechain transcript at
+  `$HOME/.claude/projects/<encoded_cwd>/<session>/subagents/agent-*.jsonl`,
+  parses the real CC schema, and writes the cell JSON). Operator
+  workflow per trial becomes `trial start → dispatch Agent → trial end`.
+  The previous `SubagentStop` hook + `capture.py` chain parsed a stale
+  CC schema (`ts` epoch float, top-level `content`) against the wrong
+  file (operator transcript, not subagent sidechain), producing cells
+  with empty `answer_text`. Tests now use a sanitized real sidechain as
+  the fixture, refusing to mock a schema that might diverge from reality.
+- `.claude/skills/eval/SKILL.md` updated to invoke `trial start` /
+  `trial end` per dispatch instead of `capture` after dispatch.
+- `docs/eval-rounds/2026-05-15-round-01.md` preflight points at
+  `switch-arm.sh` for env + skill-state setup.
+- Deleted `experiments/scripts_eval/capture.py` (replaced by `trial.py`)
+  and `experiments/scripts_eval/hooks/subagent_stop.py` (replaced by
+  `trial end`); their tests
+  (`tests/scripts_eval/test_capture.py`,
+  `tests/scripts_eval/test_hooks_subagent_stop.py`) went with them. The
+  fake-schema fixtures
+  `tests/scripts_eval/fixtures/{transcript_min,transcript_with_late_msg}.jsonl`
+  — which made the broken hook's tests pass — are also gone. The
+  `SubagentStop` hook entry was dropped from `.claude/settings.json`.
+
+### Added
+
+- `experiments/scripts_eval/switch-arm.sh` — sourceable helper that
+  flips between arm A and arm C: exports `SEER_EVAL_RUN_ID` /
+  `SEER_EVAL_ARM` and moves `.claude/skills/repo-map` aside (arm A) or
+  restores it (arm C). Idempotent on re-source; refuses direct
+  execution; guards against half-broken disk state.
+- `experiments/scripts_eval/backfill.py` — one-shot script that
+  re-extracts cells captured by the previous (broken) hook from their
+  sidechain transcripts. Used to recover the 6 round-01
+  `agtag/q-profile-overview` cells. Matches each cell to its sidechain
+  via the CC-emitted `<agent>.meta.json` description (e.g.
+  `Arm-A t1: agtag profile`) plus a corpus-aware (target, question)
+  identification from the sidechain's first user prompt; skips judge
+  dispatches whose description starts with `scripts_eval judge:`.
+- `tests/scripts_eval/fixtures/sidechain_min.jsonl` — sanitized real
+  CC subagent sidechain transcript, the canonical fixture for extraction
+  tests.
+
+### Fixed
+
+- Round 01 `agtag/q-profile-overview` cells (both arms, all 3 trials)
+  had empty `answer_text` from the previous capture chain. Backfilled
+  via the new extraction logic; judges re-run against the now-populated
+  text. Final verdicts: A=1, C=2, tie=0 (all slight margins). Notable
+  finding: arm-C produced competitive answers without invoking
+  `repo-map` — appropriate behavior for an overview question on a small
+  repo, per the established evaluation framing (skill should be reached
+  for when needed, not unconditionally).
+
 ## [0.3.3] - 2026-05-15
 
 ### Changed
