@@ -5,6 +5,28 @@ All notable changes to this project will be documented in this file.
 Format follows [Keep a Changelog](https://keepachangelog.com/). This project
 adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.3.2] - 2026-05-15
+
+### Added
+
+- scripts-eval: `eval` skill (`.claude/skills/eval/SKILL.md`) — locks the operator procedure for running one set of the harness (one `(target, question)` row × 3 trials × one arm) as a reusable, round-agnostic skill. Reads `$SEER_EVAL_RUN_ID` and writes to `docs/eval-rounds/$SEER_EVAL_RUN_ID.md`, so it serves round 01 today and future rounds without modification. Bundles the preflight checks (env vars, `repo-map` skill state, manifest init), arm-A/arm-C procedures, the judge-subagent dispatch contract (`description: scripts_eval judge: <pair_key>`), and the post-set summarize + commit. Listed in `docs/skill-sources.md` as a seer-cli-original skill (like `repo-map`).
+
+### Changed
+
+- docs/eval-rounds/2026-05-15-round-01.md trimmed to round-specific bits only (run metadata, preflight, paste templates, evidence accumulator). The procedure now lives in the `eval` skill — single source of truth, picked up automatically when an operator session triggers the skill.
+- scripts-eval: `eval` skill replaces the `python3 -c "import json; …"` prompt-extraction step with `jq -j '.prompt_text'` — no Python required, and `-j` joins without a trailing newline so the dispatched bytes match what `prepare` emitted. Aligns with the project's `uv run`-managed Python and avoids ad-hoc stdlib invocations in operator runbooks.
+
+### Fixed
+
+- scripts-eval: `summarize._replace_between` switched from a `re.DOTALL` regex pattern to index-based slicing on the original text. A judge's reasoning that verbatim quoted a section-end marker (e.g., `<!-- evidence:end -->`) could previously terminate the regex at the inner occurrence on a subsequent summarize call, corrupting the file and breaking idempotence. The render step now also disarms any literal marker strings in the payload by rewriting `<!--` to `<\!--` inside the matched marker text — markdown renders identically, and `str.find` no longer matches the escaped form as a marker on later passes.
+
+## [0.3.1] - 2026-05-15
+
+### Added
+
+- scripts-eval: `summarize.py` — accumulator that walks `results/<run_id>/arm-A/` and `arm-C/`, groups paired cells by `(repo_id, question_id)`, and rewrites two marker-bracketed regions of a tracked evidence markdown file: a per-set progress table (`<!-- runstate:... -->`) and per-set verdict tables with judge reasoning (`<!-- evidence:... -->`). Idempotent on replay so the operator runs it at the end of every session without thinking about state.
+- docs/eval-rounds/2026-05-15-round-01.md — single tracked file that serves as both the runbook (preflight + per-arm procedure + paste templates) and the evidence accumulator (auto-updated by `summarize.py`). Raw per-cell JSONs stay gitignored under `results/2026-05-15-round-01/`; this file is the committed evidence for round 01.
+
 ## [0.3.0] - 2026-05-15
 
 ### Changed
