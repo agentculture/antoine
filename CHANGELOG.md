@@ -5,6 +5,17 @@ All notable changes to this project will be documented in this file.
 Format follows [Keep a Changelog](https://keepachangelog.com/). This project
 adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.2.1] - 2026-05-15
+
+### Added
+
+- scripts-eval harness for A/B-testing the repo-map skill (experiments/scripts_eval/) — env-var-gated hooks, three-layer scoring (mechanical/code-validation/LLM-judge), 5-repo round-1 corpus, RUNBOOK + README + judge_rubric.
+- experiments dep group with anthropic and jsonschema (use uv sync --group experiments to install).
+
+### Changed
+
+- .claude/settings.json registers the three eval hooks; they no-op outside an active SEER_EVAL_RUN_ID session.
+
 ## [0.2.0] - 2026-05-15
 
 ### Added
