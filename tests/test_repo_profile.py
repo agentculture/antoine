@@ -286,6 +286,35 @@ fail_under = 80
     assert bt["python_requires"] == ">=3.11"
 
 
+def test_profile_shallow_ci_workflows(tmp_path: Path) -> None:
+    """ci_workflows returns sorted list of workflow file/name dicts."""
+    repo = tmp_path / "demo"
+    repo.mkdir()
+    (repo / "pyproject.toml").write_text('[project]\nname = "demo"\n')
+    wf_dir = repo / ".github" / "workflows"
+    wf_dir.mkdir(parents=True)
+    (wf_dir / "publish.yml").write_text("name: Publish\non: push\njobs: {}\n")
+    (wf_dir / "tests.yml").write_text("name: Tests\non: push\njobs: {}\n")
+    p = profile_shallow(repo)
+    wf = p["ci_workflows"]
+    assert isinstance(wf, list)
+    assert len(wf) == 2
+    # sorted alphabetically by filename
+    assert wf[0]["file"] == "publish.yml"
+    assert wf[0]["name"] == "Publish"
+    assert wf[1]["file"] == "tests.yml"
+    assert wf[1]["name"] == "Tests"
+
+
+def test_profile_shallow_ci_workflows_no_workflows_dir(tmp_path: Path) -> None:
+    """ci_workflows returns empty list when .github/workflows is absent."""
+    repo = tmp_path / "demo"
+    repo.mkdir()
+    (repo / "pyproject.toml").write_text('[project]\nname = "demo"\n')
+    p = profile_shallow(repo)
+    assert p["ci_workflows"] == []
+
+
 def test_profile_shallow_build_test_no_pyproject(tmp_path: Path) -> None:
     """build_test is None when no pyproject.toml is present."""
     repo = tmp_path / "no-manifest"
