@@ -39,8 +39,18 @@ def _find_pre_record(run_id: str, session_id: str) -> tuple[Path, dict] | None:
     return fp, rec
 
 
-def _last_assistant_after(transcript_path: Path, start_time: float) -> dict | None:
-    """Return the last assistant message with ts > start_time, or None."""
+def _last_assistant_in_window(
+    transcript_path: Path, start_time: float, end_time: float
+) -> dict | None:
+    """Return the last assistant message with ``start_time < ts <= end_time``.
+
+    The upper bound matters: without it, any assistant entry the operator
+    generates *after* the subagent finishes (a subsequent operator turn,
+    a follow-on subagent's output) would be picked up as this subagent's
+    answer. ``end_time`` is the SubagentStop wall-clock from the hook
+    runner, so any assistant entry with a later timestamp logically
+    belongs to a different turn.
+    """
     if not transcript_path.exists():
         return None
     last = None
@@ -52,7 +62,7 @@ def _last_assistant_after(transcript_path: Path, start_time: float) -> dict | No
         if entry.get("type") != "assistant":
             continue
         ts = entry.get("ts")
-        if ts is None or ts <= start_time:
+        if ts is None or ts <= start_time or ts > end_time:
             continue
         last = entry
     return last
@@ -72,7 +82,7 @@ def run(payload: dict, now: Callable[[], float] = time.time) -> int:
     fp, pre = found
     start_time = float(pre.get("start_time", 0.0))
     end_time = now()
-    last = _last_assistant_after(transcript_path, start_time)
+    last = _last_assistant_in_window(transcript_path, start_time, end_time)
     record = {
         "event": "subagent_stop",
         "end_time": end_time,

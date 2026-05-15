@@ -80,3 +80,33 @@ def test_no_pre_record_means_no_op(monkeypatch, tmp_path):
         now=lambda: 1700000060.0,
     )
     assert rc == 0
+
+
+def test_does_not_pick_up_assistant_messages_after_end_time(monkeypatch, tmp_path):
+    """The transcript window is [start_time, end_time]. Assistant entries
+    with ts > end_time belong to a later operator turn and must not be
+    captured as this subagent's answer/usage."""
+    monkeypatch.setenv("SEER_EVAL_RUN_ID", "r1")
+    monkeypatch.setenv("SEER_EVAL_ARM", "A")
+    monkeypatch.setattr(subagent_stop._io, "REPO_ROOT", tmp_path)
+
+    transcript = tmp_path / "transcript.jsonl"
+    shutil.copy(FIXTURE_DIR / "transcript_with_late_msg.jsonl", transcript)
+
+    sid = "r1-A-cafef00d"
+    fp = _seed_pre(tmp_path, sid, "sess-1", transcript, start_time=1700000005.0)
+
+    # end_time bounds the window at 1700000060; the late assistant at
+    # ts=1700000080 must be excluded.
+    rc = subagent_stop.run(
+        {"session_id": "sess-1", "transcript_path": str(transcript)},
+        now=lambda: 1700000060.0,
+    )
+    assert rc == 0
+
+    rec = json.loads(fp.read_text().splitlines()[1])
+    assert rec["event"] == "subagent_stop"
+    # Picked the in-window assistant message, NOT the post-window one.
+    assert rec["final_text"] == "the subagent's actual answer"
+    assert rec["usage"]["input_tokens"] == 1200
+    assert rec["usage"]["output_tokens"] == 340

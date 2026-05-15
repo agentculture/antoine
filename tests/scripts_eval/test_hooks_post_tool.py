@@ -72,3 +72,33 @@ def test_no_open_subagent_means_no_op(monkeypatch, tmp_path):
     monkeypatch.setattr(post_tool._io, "REPO_ROOT", tmp_path)
     rc = post_tool.run(_payload(), now=lambda: 1700000010.0)
     assert rc == 0  # silently skip; no raw dir, no file
+
+
+def test_no_op_when_subagent_already_closed(monkeypatch, tmp_path):
+    """Once SubagentStop has appended its terminal record, PostToolUse
+    must not re-append. Otherwise a later operator tool call in the same
+    Claude Code session leaks into the completed subagent's log and
+    contaminates the eventual tools_used aggregation."""
+    monkeypatch.setenv("SEER_EVAL_RUN_ID", "r1")
+    monkeypatch.setenv("SEER_EVAL_ARM", "C")
+    monkeypatch.setattr(post_tool._io, "REPO_ROOT", tmp_path)
+    sid = "r1-C-cafef00d"
+    fp = _seed_pre(tmp_path, sid)
+    # Append a subagent_stop terminator to "close" the JSONL.
+    with fp.open("a", encoding="utf-8") as out:
+        out.write(
+            json.dumps(
+                {
+                    "event": "subagent_stop",
+                    "end_time": 1700000050.0,
+                    "duration_seconds": 50.0,
+                }
+            )
+            + "\n"
+        )
+    before = fp.read_text()
+
+    rc = post_tool.run(_payload(), now=lambda: 1700000060.0)
+    assert rc == 0
+    # File untouched: no leak from subsequent tool calls.
+    assert fp.read_text() == before

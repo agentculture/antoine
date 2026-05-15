@@ -537,7 +537,7 @@ git commit -m "scripts-eval: corpus.yaml loader + per-cell iterator"
 
 ## Phase 3 — Hooks
 
-> **Pre-flight:** Read the Claude Code hooks docs section in `~/.claude/CLAUDE.md` (or the official docs) to confirm the hook payload schema. The plan below assumes:
+> **Pre-flight:** Read the [Claude Code hooks docs](https://docs.claude.com/en/docs/claude-code/hooks) to confirm the hook payload schema. The plan below assumes:
 > - All hooks receive a JSON object on stdin with at least `session_id`, `transcript_path`, `cwd`, `hook_event_name`.
 > - `PreToolUse` / `PostToolUse` add `tool_name` and `tool_input` (Pre) plus `tool_response` (Post).
 > - `SubagentStop` includes `transcript_path`.

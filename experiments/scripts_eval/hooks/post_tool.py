@@ -33,10 +33,35 @@ def _summarise_args(tool_input: dict) -> str:
     return s[:ARGS_MAX_LEN]
 
 
-def _find_open_subagent(run_id: str, session_id: str) -> Path | None:
-    """Return the raw JSONL of the most-recent pre_tool with this session_id.
+def _is_closed(fp: Path) -> bool:
+    """True if the JSONL's last record is a ``subagent_stop`` event.
 
-    Returns None if no match (this is a top-level call, not a subagent).
+    A subagent's JSONL is considered closed once SubagentStop has appended
+    its terminal record. PostToolUse must not append further events to a
+    closed file — otherwise unrelated tool calls in the same Claude Code
+    session leak into the completed subagent's log.
+    """
+    try:
+        lines = fp.read_text(encoding="utf-8").splitlines()
+    except OSError:
+        return True  # unreadable -> treat as closed; don't append.
+    for line in reversed(lines):
+        if not line.strip():
+            continue
+        try:
+            rec = json.loads(line)
+        except ValueError:
+            return True  # malformed tail -> don't append more.
+        return rec.get("event") == "subagent_stop"
+    return False  # empty file (shouldn't happen) -> not closed.
+
+
+def _find_open_subagent(run_id: str, session_id: str) -> Path | None:
+    """Return the raw JSONL of the most-recent *open* pre_tool for this session.
+
+    Skips files that are already closed (their last record is
+    ``subagent_stop``). Returns None if no open match (e.g. a top-level
+    operator call, or all matching subagents have completed).
     """
     raw = _io.raw_dir(run_id)
     if not raw.exists():
@@ -48,8 +73,13 @@ def _find_open_subagent(run_id: str, session_id: str) -> Path | None:
             rec = json.loads(first)
         except (OSError, ValueError, IndexError):
             continue
-        if rec.get("event") == "pre_tool" and rec.get("session_id") == session_id:
-            matches.append((fp.stat().st_mtime, fp))
+        if rec.get("event") != "pre_tool":
+            continue
+        if rec.get("session_id") != session_id:
+            continue
+        if _is_closed(fp):
+            continue
+        matches.append((fp.stat().st_mtime, fp))
     if not matches:
         return None
     matches.sort()
