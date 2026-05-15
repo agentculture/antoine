@@ -15,6 +15,7 @@ explicitly — these copies do not auto-update.
 | `run-tests` | `steward` (`../steward/.claude/skills/run-tests/`) | 2026-05-15 | None — portable verbatim. Coverage source resolves from `[tool.coverage.run]` in `pyproject.toml`. |
 | `sonarclaude` | `steward` (`../steward/.claude/skills/sonarclaude/`) | 2026-05-15 | None — portable verbatim. Project key resolves from `$SONAR_PROJECT` / `--project` (seer-cli's key is `agentculture_seer-cli`). |
 | `version-bump` | `steward` (`../steward/.claude/skills/version-bump/`) | 2026-05-15 | None — portable verbatim. Pure Python, no per-repo customization. seer-cli's `CHANGELOG.md` keeps a `# Changelog` + intro-prose header, so the first `## [` entry is a valid insertion point for the upstream script. |
+| `repo-map` | _internal implementation_ — seer-cli origin | 2026-05-15 | **Runtime:** thin shell wrappers under `.claude/skills/repo-map/scripts/{profile,connections,graph}.sh` that invoke `uv run --directory <repo-root> python -m seer.repo <verb>`. Engine lives in `seer/repo/` in this repo. **Divergence:** N/A — this skill is original to seer-cli, not vendored from steward. If/when promoted upstream, this row flips to a `Re-vendor from steward` pointer. |
 
 ## Vendoring policy
 

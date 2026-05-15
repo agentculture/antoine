@@ -6,6 +6,8 @@ This is the "show me what's in this workspace" verb, distinct from
 
 from __future__ import annotations
 
+import hashlib
+import re
 from pathlib import Path
 from typing import Any
 
@@ -13,6 +15,8 @@ from seer.cli._errors import SeerError
 from seer.repo.connections import _edges_from_profile
 from seer.repo.detect import find_repos, resolve_name
 from seer.repo.profile import profile_shallow
+
+_SAFE_RE = re.compile(r"[^A-Za-z0-9_]")
 
 
 def build_graph(  # pylint: disable=too-many-locals
@@ -119,5 +123,26 @@ def _render_mermaid(
 
 
 def _safe(name: str) -> str:
-    """Return a Mermaid-safe node id (replaces ``-`` and ``.`` with ``_``)."""
-    return name.replace("-", "_").replace(".", "_")
+    """Return a Mermaid-safe node id for ``name``.
+
+    Mermaid identifiers must match ``[A-Za-z_][A-Za-z0-9_]*``. This
+    helper:
+
+    * Replaces every character outside ``[A-Za-z0-9_]`` with ``_``.
+    * Prepends ``n_`` when the sanitised value is empty or starts with
+      a digit (Mermaid forbids digit-leading identifiers).
+    * Appends a short stable hash of the original string whenever
+      sanitisation actually changed the value, so two distinct inputs
+      that would otherwise collapse to the same id (e.g. ``a-b`` and
+      ``a_b``, or ``foo bar`` and ``foo/bar``) stay distinct in the
+      generated diagram.
+    """
+    if not name:
+        return "n_"
+    sanitised = _SAFE_RE.sub("_", name)
+    if sanitised != name:
+        digest = hashlib.sha256(name.encode("utf-8")).hexdigest()[:6]
+        sanitised = f"{sanitised}_{digest}"
+    if sanitised[0].isdigit():
+        sanitised = "n_" + sanitised
+    return sanitised

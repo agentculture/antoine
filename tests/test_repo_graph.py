@@ -7,7 +7,7 @@ from pathlib import Path
 import pytest
 
 from seer.cli._errors import SeerError
-from seer.repo.graph import build_graph
+from seer.repo.graph import _safe, build_graph
 
 
 def _mkrepo(root: Path, name: str, deps: list[str] | None = None) -> Path:
@@ -74,3 +74,45 @@ def test_build_graph_non_strict_inlines_walk_errors(tmp_path: Path) -> None:
     (bad / "pyproject.toml").write_text("[project\nname='bad'")  # malformed TOML
     g = build_graph([tmp_path])
     assert any("bad" in e.get("node", "") for e in g["walk_errors"])
+
+
+def test_safe_preserves_already_valid_identifier() -> None:
+    """Pure alphanumeric+underscore names pass through unchanged."""
+    assert _safe("alpha") == "alpha"
+    assert _safe("beta_one") == "beta_one"
+
+
+def test_safe_replaces_unsafe_characters() -> None:
+    """Anything outside [A-Za-z0-9_] becomes _, with a hash suffix appended."""
+    out = _safe("foo bar")
+    assert " " not in out
+    assert out.startswith("foo_bar_")  # sanitised + 6-char hash
+
+    out = _safe("agentculture/culture")
+    assert "/" not in out
+    assert out.startswith("agentculture_culture_")
+
+    out = _safe("`cicd`")
+    assert "`" not in out
+
+
+def test_safe_prevents_collisions_between_distinct_inputs() -> None:
+    """Two distinct names that sanitise to the same prefix must still be distinct."""
+    a = _safe("a-b")
+    b = _safe("a_b")
+    c = _safe("a.b")
+    # Pre-hash all three would collapse to "a_b"; hash suffix keeps them distinct.
+    assert a != b
+    assert b != c
+    assert a != c
+
+
+def test_safe_prepends_n_for_digit_first_identifier() -> None:
+    """Mermaid identifiers cannot start with a digit."""
+    out = _safe("1foo")
+    assert not out[0].isdigit()
+
+
+def test_safe_handles_empty_string() -> None:
+    """An empty input must still produce a usable Mermaid id."""
+    assert _safe("") == "n_"

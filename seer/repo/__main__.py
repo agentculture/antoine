@@ -5,20 +5,29 @@ Verbs:
   profile <path> [--depth shallow|deep] [--json]
   connections <path> [--depth N|all] [--profile] [--depth-profile shallow|deep]
               [--root PATH ...] [--marker FILE ...] [--strict] [--json]
-  graph [<root>...] [--marker FILE ...] [--json]
+  graph [<root>...] [--marker FILE ...] [--strict] [--json]
 
 Output: markdown by default; JSON when ``--json`` is passed.
-Errors: routed through :func:`seer.cli._output.emit_error`; partial-failure
-inlining for walks lives inside :func:`seer.repo.connections.walk`.
+Errors: routed through :func:`_dispatch`, which loads config and invokes the
+verb handler inside a single try/except so neither config-load nor verb
+execution can leak a Python traceback. Partial-failure inlining for walks
+lives inside :func:`seer.repo.connections.walk` /
+:func:`seer.repo.graph.build_graph`.
 """
 
 from __future__ import annotations
 
 import argparse
+import json
 import sys
 from pathlib import Path
 
-from seer.cli._errors import EXIT_INTERNAL, EXIT_USER_ERROR, SeerError
+from seer.cli._errors import (
+    EXIT_ENV_ERROR,
+    EXIT_INTERNAL,
+    EXIT_USER_ERROR,
+    SeerError,
+)
 from seer.cli._output import emit_error, emit_result
 from seer.repo.config import RepoMapConfig, load_config
 from seer.repo.connections import walk
@@ -32,7 +41,7 @@ from seer.repo.render import (
 )
 
 
-def _profile(args: argparse.Namespace) -> int:
+def _profile(args: argparse.Namespace, _cfg: RepoMapConfig) -> int:
     """Handle the ``profile`` verb."""
     path = Path(args.path)
     if not path.is_dir():
@@ -51,10 +60,14 @@ def _connections(args: argparse.Namespace, cfg: RepoMapConfig) -> int:
     if not seed.is_dir():
         raise path_not_a_directory(seed)
     roots = [Path(r) for r in (args.root or [str(p) for p in cfg.roots])]
+    # `--depth` defaults to None at the parser level so the configured
+    # `default_connections_depth` is reachable when the user doesn't pass
+    # an explicit flag.
+    depth = args.depth if args.depth is not None else cfg.default_connections_depth
     result = walk(
         seed=seed,
         roots=roots,
-        depth=args.depth,
+        depth=depth,
         with_profile=args.profile,
         depth_profile=args.depth_profile,
         additional_markers=(args.marker or cfg.additional_markers),
@@ -96,13 +109,17 @@ def _build_parser() -> argparse.ArgumentParser:
     pp.add_argument("path")
     pp.add_argument("--depth", choices=["shallow", "deep"], default="shallow")
     pp.add_argument("--json", action="store_true")
+    pp.set_defaults(func=_profile)
 
     pc = sub.add_parser("connections", help="Walk outward from a seed repo.")
     pc.add_argument("path")
     pc.add_argument(
         "--depth",
-        default="1",
-        help="non-negative int or 'all' (default: 1)",
+        default=None,
+        help=(
+            "non-negative int or 'all'. When omitted, falls back to "
+            "config `default_connections_depth` (default: 1)."
+        ),
     )
     pc.add_argument(
         "--profile",
@@ -133,25 +150,53 @@ def _build_parser() -> argparse.ArgumentParser:
         help="fail on any per-node error",
     )
     pc.add_argument("--json", action="store_true")
+    pc.set_defaults(func=_connections)
 
     pg = sub.add_parser("graph", help="Multi-root workspace view.")
     pg.add_argument("roots", nargs="*")
     pg.add_argument("--marker", action="append", default=None)
     pg.add_argument("--strict", action="store_true", help="fail on any per-node error")
     pg.add_argument("--json", action="store_true")
+    pg.set_defaults(func=_graph)
 
     return parser
 
 
-def _dispatch_verb(args: argparse.Namespace, cfg: RepoMapConfig) -> int:
-    """Route *args.verb* to the correct handler and return its exit code."""
-    if args.verb == "profile":
-        return _profile(args)
-    if args.verb == "connections":
-        return _connections(args, cfg)
-    if args.verb == "graph":
-        return _graph(args, cfg)
-    return EXIT_USER_ERROR
+def _dispatch(args: argparse.Namespace) -> int:
+    """Load config and invoke the verb handler with structured error wrapping.
+
+    Centralises the policy: every failure — whether it originates in
+    :func:`seer.repo.config.load_config` or inside a verb handler — is
+    routed through :func:`seer.cli._output.emit_error` and translated to an
+    exit code. No Python traceback leaks.
+    """
+    json_mode = bool(getattr(args, "json", False))
+    try:
+        cfg = load_config()
+        return args.func(args, cfg)
+    except SeerError as err:
+        emit_error(err, json_mode=json_mode)
+        return err.code
+    except json.JSONDecodeError as err:
+        wrapped = SeerError(
+            code=EXIT_ENV_ERROR,
+            kind="env_error",
+            message="Malformed .claude/skills/repo-map/config.json",
+            reason=f"JSON parse error: {err}",
+            remediation=("Fix the JSON syntax or delete the file to fall back to defaults."),
+        )
+        emit_error(wrapped, json_mode=json_mode)
+        return wrapped.code
+    except Exception as err:  # noqa: BLE001  # pylint: disable=broad-exception-caught
+        wrapped = SeerError(
+            code=EXIT_INTERNAL,
+            kind="bug",
+            message=f"unexpected: {err.__class__.__name__}: {err}",
+            reason="An unhandled exception escaped a seer.repo verb.",
+            remediation="file a bug at https://github.com/agentculture/seer-cli/issues",
+        )
+        emit_error(wrapped, json_mode=json_mode)
+        return wrapped.code
 
 
 def main(argv: list[str] | None = None) -> int:
@@ -161,23 +206,10 @@ def main(argv: list[str] | None = None) -> int:
     if args.verb is None:
         parser.print_help()
         return 0
-    json_mode = bool(getattr(args, "json", False))
-    cfg = load_config()
-    try:
-        return _dispatch_verb(args, cfg)
-    except SeerError as err:
-        emit_error(err, json_mode=json_mode)
-        return err.code
-    except Exception as err:  # noqa: BLE001  # pylint: disable=broad-exception-caught
-        wrapped = SeerError(
-            code=EXIT_INTERNAL,
-            kind="bug",
-            message=f"unexpected: {err.__class__.__name__}: {err}",
-            reason="An unhandled exception escaped a seer.repo verb.",
-            remediation=("file a bug at https://github.com/agentculture/seer-cli/issues"),
-        )
-        emit_error(wrapped, json_mode=json_mode)
-        return wrapped.code
+    if not hasattr(args, "func"):
+        parser.print_help()
+        return EXIT_USER_ERROR
+    return _dispatch(args)
 
 
 if __name__ == "__main__":
