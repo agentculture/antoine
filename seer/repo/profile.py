@@ -159,33 +159,35 @@ def _is_changelog_summary_line(line: str) -> bool:
     return not body.startswith("#")
 
 
+def _first_changelog_summary(body_lines: list[str]) -> str:
+    """Return the first viable summary line from a slice of body lines, else ``""``."""
+    for line in body_lines:
+        if _is_changelog_summary_line(line):
+            return line.strip().lstrip("-").strip()
+    return ""
+
+
 def _read_changelog(path: Path, *, n: int) -> list[dict[str, str]]:
-    """Return up to ``n`` recent entries from ``CHANGELOG.md`` (Keep-a-Changelog)."""
+    """Return up to ``n`` recent entries from ``CHANGELOG.md`` (Keep-a-Changelog).
+
+    Two-pass: collect heading indices first, then extract one summary line
+    per heading from the body slice between it and the next heading. This
+    keeps the per-function cognitive complexity small.
+    """
     f = path / "CHANGELOG.md"
     if not f.exists():
         return []
+    lines = f.read_text(encoding="utf-8").splitlines()
+    heading_positions = [(i, line) for i, line in enumerate(lines) if line.startswith("## ")][:n]
     entries: list[dict[str, str]] = []
-    current: dict[str, str] | None = None
-    seen_summary = False
-    for line in f.read_text(encoding="utf-8").splitlines():
-        if line.startswith("## "):
-            if current is not None:
-                entries.append(current)
-                if len(entries) >= n:
-                    return entries
-            current = _parse_changelog_heading(line)
-            current["summary"] = ""
-            seen_summary = False
-            continue
-        if current is None or seen_summary:
-            continue
-        if not _is_changelog_summary_line(line):
-            continue
-        current["summary"] = line.strip().lstrip("-").strip()
-        seen_summary = True
-    if current is not None and len(entries) < n:
-        entries.append(current)
-    return entries[:n]
+    for idx, (start, heading_line) in enumerate(heading_positions):
+        entry = _parse_changelog_heading(heading_line)
+        next_heading = (
+            heading_positions[idx + 1][0] if idx + 1 < len(heading_positions) else len(lines)
+        )
+        entry["summary"] = _first_changelog_summary(lines[start + 1 : next_heading])
+        entries.append(entry)
+    return entries
 
 
 def _parse_changelog_heading(line: str) -> dict[str, str]:
