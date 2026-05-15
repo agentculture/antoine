@@ -35,6 +35,8 @@ def emit_error(err: SeerError, *, json_mode: bool, stream: TextIO | None = None)
         s.write("\n")
         return
     s.write(f"error: {err.message}\n")
+    if err.reason:
+        s.write(f"reason: {err.reason}\n")
     if err.remediation:
         s.write(f"hint: {err.remediation}\n")
 

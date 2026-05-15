@@ -5,6 +5,27 @@ All notable changes to this project will be documented in this file.
 Format follows [Keep a Changelog](https://keepachangelog.com/). This project
 adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.2.0] - 2026-05-15
+
+### Added
+
+- `repo-map` Claude Code skill plus the underlying `seer.repo` Python
+  module. Three verbs — `profile`, `connections`, `graph` — emit
+  deterministic markdown (default) or JSON (`--json`) about one repo,
+  its connected neighbors, or an entire workspace.
+- Generic repo detection: any directory with `pyproject.toml`,
+  `.claude/skills/`, or a user-configured marker file qualifies.
+  Optional `.claude/skills/repo-map/config.json` for per-workspace
+  defaults (roots, additional markers, skip dirs).
+- `SeerError` extended with `reason` and `kind` fields; `emit_error`
+  text mode now prints a `reason:` line between `error:` and `hint:`
+  when present. `EXIT_INTERNAL = 3` reserved for bug-wrapped exceptions.
+
+### Changed
+
+- `pyyaml>=6.0` added as the first runtime dependency (used for
+  `culture.yaml` parsing and any other YAML marker the user configures).
+
 ## [0.1.0] - 2026-05-15
 
 ### Added

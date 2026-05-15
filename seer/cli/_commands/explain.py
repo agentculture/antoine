@@ -5,6 +5,8 @@ will eventually print docs for a given topic / command path; today it prints
 an honest "not yet implemented" line.
 """
 
+# pylint: disable=duplicate-code  # intentional: three stub verbs share the same structure
+
 from __future__ import annotations
 
 import argparse
@@ -26,6 +28,7 @@ def _json_payload() -> dict[str, object]:
 
 
 def cmd_explain(args: argparse.Namespace) -> int:
+    """Handle the ``explain`` verb — print status and return 0."""
     json_mode = bool(getattr(args, "json", False))
     if json_mode:
         emit_result(_json_payload(), json_mode=True)
@@ -35,6 +38,7 @@ def cmd_explain(args: argparse.Namespace) -> int:
 
 
 def register(sub: argparse._SubParsersAction) -> None:
+    """Register the ``explain`` sub-command on *sub*."""
     p = sub.add_parser("explain", help="Explain a seer topic or command (stub).")
     p.add_argument("--json", action="store_true", help="Emit structured JSON.")
     p.set_defaults(func=cmd_explain)

@@ -12,6 +12,8 @@ the raw argv (:func:`main` sets ``_SeerArgumentParser._json_hint`` before
 ``parse_args``).
 """
 
+# pylint: disable=duplicate-code  # _dispatch mirrors seer.repo.__main__ by design
+
 from __future__ import annotations
 
 import argparse
@@ -54,9 +56,12 @@ def _build_parser() -> argparse.ArgumentParser:
     )
     sub = parser.add_subparsers(dest="command", parser_class=_SeerArgumentParser)
 
+    # pylint: disable=import-outside-toplevel
     from seer.cli._commands import explain as _explain_cmd
     from seer.cli._commands import learn as _learn_cmd
     from seer.cli._commands import whoami as _whoami_cmd
+
+    # pylint: enable=import-outside-toplevel
 
     _learn_cmd.register(sub)
     _explain_cmd.register(sub)
@@ -65,7 +70,7 @@ def _build_parser() -> argparse.ArgumentParser:
     return parser
 
 
-def _dispatch(args: argparse.Namespace) -> int:
+def _dispatch(args: argparse.Namespace) -> int:  # pylint: disable=duplicate-code
     """Invoke the registered handler and translate exceptions to exit codes.
 
     A handler may return ``None`` (treated as success, exit 0) or an ``int``
@@ -78,7 +83,7 @@ def _dispatch(args: argparse.Namespace) -> int:
     except SeerError as err:
         emit_error(err, json_mode=json_mode)
         return err.code
-    except Exception as err:  # noqa: BLE001 - last-resort; wrap and route cleanly
+    except Exception as err:  # noqa: BLE001  # pylint: disable=broad-exception-caught
         wrapped = SeerError(
             code=EXIT_USER_ERROR,
             message=f"unexpected: {err.__class__.__name__}: {err}",
@@ -90,7 +95,8 @@ def _dispatch(args: argparse.Namespace) -> int:
 
 
 def main(argv: list[str] | None = None) -> int:
-    _SeerArgumentParser._json_hint = _argv_has_json(argv)
+    """Parse *argv* (defaults to ``sys.argv[1:]``) and dispatch to a verb handler."""
+    _SeerArgumentParser._json_hint = _argv_has_json(argv)  # pylint: disable=protected-access
     parser = _build_parser()
     args = parser.parse_args(argv)
 

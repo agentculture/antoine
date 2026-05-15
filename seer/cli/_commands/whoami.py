@@ -26,6 +26,7 @@ def _json_payload() -> dict[str, object]:
 
 
 def cmd_whoami(args: argparse.Namespace) -> int:
+    """Handle the ``whoami`` verb — print status and return 0."""
     json_mode = bool(getattr(args, "json", False))
     if json_mode:
         emit_result(_json_payload(), json_mode=True)
@@ -35,6 +36,7 @@ def cmd_whoami(args: argparse.Namespace) -> int:
 
 
 def register(sub: argparse._SubParsersAction) -> None:
+    """Register the ``whoami`` sub-command on *sub*."""
     p = sub.add_parser("whoami", help="Print seer's identity probe (stub).")
     p.add_argument("--json", action="store_true", help="Emit structured JSON.")
     p.set_defaults(func=cmd_whoami)

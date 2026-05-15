@@ -55,3 +55,50 @@ def test_emit_diagnostic_adds_newline() -> None:
     buf = io.StringIO()
     emit_diagnostic("working", stream=buf)
     assert buf.getvalue() == "working\n"
+
+
+def test_emit_error_text_with_reason_and_remediation() -> None:
+    buf = io.StringIO()
+    emit_error(
+        SeerError(
+            code=1,
+            message="bad",
+            reason="no manifest found",
+            remediation="fix it",
+        ),
+        json_mode=False,
+        stream=buf,
+    )
+    assert buf.getvalue() == ("error: bad\nreason: no manifest found\nhint: fix it\n")
+
+
+def test_emit_error_text_with_reason_only() -> None:
+    buf = io.StringIO()
+    emit_error(
+        SeerError(code=1, message="bad", reason="no manifest found"),
+        json_mode=False,
+        stream=buf,
+    )
+    assert buf.getvalue() == "error: bad\nreason: no manifest found\n"
+
+
+def test_emit_error_json_with_reason_and_kind() -> None:
+    buf = io.StringIO()
+    emit_error(
+        SeerError(
+            code=1,
+            kind="user_error",
+            message="bad",
+            reason="no manifest found",
+            remediation="fix it",
+        ),
+        json_mode=True,
+        stream=buf,
+    )
+    assert json.loads(buf.getvalue()) == {
+        "code": 1,
+        "kind": "user_error",
+        "message": "bad",
+        "reason": "no manifest found",
+        "remediation": "fix it",
+    }

@@ -1,6 +1,6 @@
 [project]
 name = "seer-cli"
-version = "0.1.0"
+version = "0.2.0"
 description = "seer — codebase lookup and indexing for agent skills (greenfield AgentCulture sibling)."
 readme = "README.md"
 license = "MIT"
@@ -13,7 +13,7 @@ classifiers = [
     "Topic :: Software Development",
     "Intended Audience :: Developers",
 ]
-dependencies = []
+dependencies = ["pyyaml>=6.0"]
 
 [project.urls]
 Homepage = "https://github.com/agentculture/seer-cli"
