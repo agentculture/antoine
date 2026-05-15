@@ -31,8 +31,7 @@ def test_validate_marks_recall(monkeypatch, tmp_path):
             "question_id": "q1",
             "trial": 1,
             "answer_text": (
-                "Look at pyproject.toml; run uv sync to install. "
-                "The repo is an async IRCd."
+                "Look at pyproject.toml; run uv sync to install. " "The repo is an async IRCd."
             ),
             "subagent": {},
             "validation": None,

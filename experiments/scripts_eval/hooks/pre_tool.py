@@ -29,7 +29,14 @@ def run(payload: dict, now: Callable[[], float] = time.time) -> int:
         return 0
     if payload.get("tool_name") != "Agent":
         return 0
-    arm = _io.eval_arm() or "?"
+    arm = _io.eval_arm()
+    if arm is None:
+        print(
+            "scripts-eval pre_tool: SEER_EVAL_RUN_ID is set but SEER_EVAL_ARM is not; "
+            "skipping (export SEER_EVAL_ARM=A or C)",
+            file=sys.stderr,
+        )
+        return 0
     sid = _subagent_id(run_id, arm)
     tool_input = payload.get("tool_input", {}) or {}
     record = {

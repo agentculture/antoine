@@ -138,7 +138,7 @@ questions:
       edges), and how are they related?
     expected_evidence:
       _global:
-        - /agentculture/i
+        - agentculture
         - "steward"
         - "culture"
         - "daria"

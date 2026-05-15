@@ -57,3 +57,14 @@ def test_writes_jsonl_for_agent_dispatch(monkeypatch, tmp_path):
     assert line["agent_type"] == "Explore"
     assert line["prompt"] == "overview the culture repo"
     assert line["start_time"] == 1700000000.0
+
+
+def test_warns_and_skips_when_arm_unset(monkeypatch, tmp_path, capsys):
+    monkeypatch.setenv("SEER_EVAL_RUN_ID", "r1")
+    monkeypatch.delenv("SEER_EVAL_ARM", raising=False)
+    monkeypatch.setattr(pre_tool._io, "REPO_ROOT", tmp_path)
+    rc = pre_tool.run(_payload(), now=lambda: 1700000000.0)
+    assert rc == 0
+    captured = capsys.readouterr()
+    assert "SEER_EVAL_ARM" in captured.err
+    assert not (tmp_path / "experiments" / "scripts_eval" / "results").exists()

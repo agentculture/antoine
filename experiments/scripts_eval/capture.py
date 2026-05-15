@@ -45,9 +45,7 @@ def _aggregate_tools(records: Iterable[dict]) -> list[dict]:
         slot["count"] += 1
         s = r.get("args_summary")
         if s:
-            # Extract first token (command/script name) from args_summary
-            first_token = s.split()[0] if s.split() else s
-            slot["patterns"].append(first_token)
+            slot["patterns"].append(s)
     out = []
     for name, slot in by_name.items():
         out.append(
@@ -83,6 +81,7 @@ def build_cell(records: list[dict], *, repo_id: str | None, question_id: str, tr
             },
             "tools_used": _aggregate_tools(records),
         },
+        "question_text": pre.get("prompt", ""),
         "answer_text": stop.get("final_text", ""),
         "validation": None,
         "judge": None,

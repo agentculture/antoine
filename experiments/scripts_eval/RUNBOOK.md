@@ -11,6 +11,8 @@ one cell at a time.
 - `corpus.yaml` lists the targets and questions for this round.
 - A run id is chosen, e.g. `2026-05-15-run-01`.
 
+**Note for non-spark contributors:** edit `corpus.yaml`'s `config.workspace_root` to point at *your* checkout root before round 1 — the `q-graph-workspace` question substitutes this path verbatim.
+
 ## One run = two operator sessions
 
 Round 1 uses two distinct Claude Code sessions, one per arm:

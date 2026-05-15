@@ -79,7 +79,8 @@ def test_capture_one_complete_subagent(monkeypatch, tmp_path):
     tools = {t["name"]: t for t in cell["subagent"]["tools_used"]}
     assert tools["Bash"]["count"] == 1
     assert tools["Read"]["count"] == 1
-    assert "scripts/profile.sh" in tools["Bash"]["patterns"]
+    assert any("scripts/profile.sh" in p for p in tools["Bash"]["patterns"])
+    assert cell["question_text"] == "overview the culture repo"
     assert cell["answer_text"] == "answer text"
 
     # Per-cell JSON written under arm-C/
