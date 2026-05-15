@@ -73,7 +73,12 @@ codebases.
 ```
 seer-cli/
 └── experiments/
-    └── scripts-eval/
+    └── scripts_eval/                      ← dir is underscored so the
+                                              scripts can import shared
+                                              helpers; the concept name
+                                              "scripts-eval" stays
+                                              hyphenated in prose, branches,
+                                              and run-ids.
         ├── README.md             ← what / why / how to read results
         ├── RUNBOOK.md            ← procedure the operator-Claude follows
         ├── corpus.yaml           ← repos × questions (incl. expected_evidence)
@@ -98,8 +103,8 @@ seer-cli/
 
 The harness lives in a top-level `experiments/` dir (sibling to
 `seer/`, `tests/`, `docs/`). It is **not** Python-packaged; the
-`scripts-eval` directory is invoked as scripts (`python
-experiments/scripts-eval/judge.py`). This keeps it out of `seer-cli`'s
+`scripts_eval` directory is invoked as scripts (`python
+experiments/scripts_eval/judge.py`). This keeps it out of `seer-cli`'s
 import surface and makes clear it is not part of the shipped CLI.
 
 ## Per-cell run flow
@@ -456,7 +461,7 @@ the scripts; this is a finding, not a bug).
 A new contributor (or future-us) running this against their own repos:
 
 1. Clone seer-cli; `uv sync`.
-2. Edit `experiments/scripts-eval/corpus.yaml`:
+2. Edit `experiments/scripts_eval/corpus.yaml`:
    - Replace `targets:` with their own `repo_id` + `path` rows.
    - Replace per-`repo_id` `expected_evidence` lists with their own.
    - Optionally edit question templates if their repos need different
@@ -467,10 +472,10 @@ A new contributor (or future-us) running this against their own repos:
    `SEER_EVAL_ARM`.
 5. Both sessions read `RUNBOOK.md` and dispatch their assigned cells.
 6. After both arms complete:
-   - `python experiments/scripts-eval/capture.py --run <run_id>`
-   - `python experiments/scripts-eval/validate.py --run <run_id>`
-   - `python experiments/scripts-eval/judge.py --run <run_id>`
-   - `python experiments/scripts-eval/report.py --run <run_id>`
+   - `python experiments/scripts_eval/capture.py --run <run_id>`
+   - `python experiments/scripts_eval/validate.py --run <run_id>`
+   - `python experiments/scripts_eval/judge.py --run <run_id>`
+   - `python experiments/scripts_eval/report.py --run <run_id>`
 7. Read `results/<run_id>/REPORT.md`.
 
 `RUNBOOK.md` and `README.md` carry this procedure with concrete
