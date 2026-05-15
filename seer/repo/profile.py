@@ -54,6 +54,7 @@ def profile_shallow(path: Path) -> dict[str, object]:
         "deps_runtime": m["deps_runtime"],
         "deps_dev": m["deps_dev"],
         "package_layout": _list_packages(path),
+        "package_tree": _package_tree(path),
         "vendored_skills": _list_vendored_skills(path),
         "citations": _read_citations(path),
         "changelog_recent": _read_changelog(path, n=3),
@@ -66,20 +67,71 @@ def profile_shallow(path: Path) -> dict[str, object]:
     return profile
 
 
+_PKG_EXCLUDE = {"tests", "docs", "scripts", "__pycache__"}
+_INIT_PY = "__init__.py"
+
+
+def _is_candidate_pkg_dir(child: Path) -> bool:
+    """True if *child* is a non-hidden, non-excluded directory worth scanning."""
+    return child.is_dir() and not child.name.startswith(".") and child.name not in _PKG_EXCLUDE
+
+
 def _list_packages(path: Path) -> list[str]:
     """Return one-level Python packages at the repo root or under ``src/``."""
-    exclude = {"tests", "docs", "scripts", "__pycache__"}
     out: list[str] = []
     for child in sorted(path.iterdir()):
-        if not child.is_dir() or child.name.startswith(".") or child.name in exclude:
+        if not _is_candidate_pkg_dir(child):
             continue
-        if (child / "__init__.py").exists():
+        if (child / _INIT_PY).exists():
             out.append(child.name + "/")
     src = path / "src"
     if src.is_dir():
         for child in sorted(src.iterdir()):
-            if child.is_dir() and (child / "__init__.py").exists():
+            if not _is_candidate_pkg_dir(child):
+                continue
+            if (child / _INIT_PY).exists():
                 out.append(f"src/{child.name}/")
+    return out
+
+
+def _package_node(pkg_dir: Path, *, remaining_depth: int) -> dict[str, object]:
+    """Build one tree node for *pkg_dir*; recurse into subpackages until depth exhausted."""
+    modules: list[str] = []
+    subpackages: list[dict[str, object]] = []
+    for child in sorted(pkg_dir.iterdir()):
+        if child.name.startswith(".") or child.name in _PKG_EXCLUDE:
+            continue
+        if child.is_file() and child.suffix == ".py":
+            modules.append(child.name)
+            continue
+        if child.is_dir() and (child / _INIT_PY).exists() and remaining_depth > 0:
+            subpackages.append(_package_node(child, remaining_depth=remaining_depth - 1))
+    return {"name": pkg_dir.name, "modules": modules, "subpackages": subpackages}
+
+
+def _package_tree(path: Path, *, max_depth: int = 2) -> list[dict[str, object]]:
+    """Return one node per top-level package with up to ``max_depth`` levels of subpackages.
+
+    Walks the same roots as :func:`_list_packages` (repo root + ``src/``) and
+    honors the same exclude set, so callers that consume both the flat
+    ``package_layout`` and the nested ``package_tree`` see consistent contents.
+
+    ``max_depth=2`` means: top-level package (e.g. ``demo/``) plus up to two
+    nested levels of subpackages (e.g. ``demo/cli/`` and ``demo/cli/_commands/``).
+    """
+    out: list[dict[str, object]] = []
+    for child in sorted(path.iterdir()):
+        if not _is_candidate_pkg_dir(child):
+            continue
+        if (child / _INIT_PY).exists():
+            out.append(_package_node(child, remaining_depth=max_depth))
+    src = path / "src"
+    if src.is_dir():
+        for child in sorted(src.iterdir()):
+            if not _is_candidate_pkg_dir(child):
+                continue
+            if (child / _INIT_PY).exists():
+                out.append(_package_node(child, remaining_depth=max_depth))
     return out
 
 
@@ -104,6 +156,19 @@ def _list_vendored_skills(path: Path) -> list[dict[str, str]]:
     return skills
 
 
+def _unwrap_backticks(val: str) -> str:
+    """Strip a *fully balanced* ```…``` pair from *val* and trim whitespace.
+
+    Cells with internal ```…``` spans (e.g.
+    ```agentculture/steward` (`.claude/skills/cicd/`)``)
+    are left intact so the rendered markdown stays valid.
+    """
+    v = val.strip()
+    if len(v) >= 2 and v.startswith("`") and v.endswith("`"):
+        return v[1:-1].strip()
+    return v
+
+
 def _read_skill_sources(path: Path) -> dict[str, dict[str, str]]:
     """Parse ``docs/skill-sources.md`` table rows into ``{name: {source, version}}``."""
     f = path / "docs" / "skill-sources.md"
@@ -116,12 +181,12 @@ def _read_skill_sources(path: Path) -> dict[str, dict[str, str]]:
             continue
         parts = [p.strip() for p in s.strip("|").split("|")]
         if len(parts) >= 2 and parts[0] and parts[1] and parts[0] not in {"name", "Skill"}:
-            key = parts[0].strip("` ").strip()
+            key = _unwrap_backticks(parts[0])
             if key.lower() in {"name", "skill"}:
                 continue
             out[key] = {
-                "source": parts[1].strip("` ").strip(),
-                "version": parts[2].strip("` ").strip() if len(parts) >= 3 else "",
+                "source": _unwrap_backticks(parts[1]),
+                "version": _unwrap_backticks(parts[2]) if len(parts) >= 3 else "",
             }
     return out
 
@@ -138,14 +203,14 @@ def _read_citations(path: Path) -> list[dict[str, str]]:
             continue
         parts = [p.strip() for p in s.strip("|").split("|")]
         if len(parts) >= 3 and parts[0] and parts[1] and parts[2]:
-            first = parts[0].lower().strip("` ").strip()
+            first = _unwrap_backticks(parts[0]).lower()
             if first.startswith("local") or first in {"path", "file"}:
                 continue
             out.append(
                 {
-                    "local": parts[0].strip("` ").strip(),
-                    "source_repo": parts[1].strip("` ").strip(),
-                    "sha": parts[2].strip("` ").strip(),
+                    "local": _unwrap_backticks(parts[0]),
+                    "source_repo": _unwrap_backticks(parts[1]),
+                    "sha": _unwrap_backticks(parts[2]),
                 }
             )
     return out

@@ -1,12 +1,23 @@
 ---
 name: repo-map
 description: >
-  Profile a Python repo, walk its connected repos N hops out, or build a
-  whole-workspace graph — deterministically, without re-grepping. Backed
-  by `seer.repo` in this repo. Use when a user asks to understand a repo
-  or a workspace of related repos: what's there, what depends on what,
-  and how they fit together. Output is markdown by default; pass `--json`
-  for machine-readable.
+  Mechanical facts about a Python repo or a workspace of related repos —
+  in one tool call, instead of N grep/read calls.
+  `scripts/profile.sh <path>` returns: package name, version, repo path,
+  manifest type + language, entry points, runtime + dev deps, flat
+  package layout, depth-2 package tree, vendored skills with upstream
+  provenance, last 3 changelog entries, CITATION.md table, CLAUDE.md
+  "Project status" body, extras (culture nick, …). Add `--depth deep`
+  for: README intro, design-related CLAUDE.md sections, last 10 commit
+  subjects.
+  `scripts/connections.sh <path> --depth N` returns typed import / cite /
+  vendor edges N hops out, plus each neighbor node (add `--profile` to
+  inline each node's profile). `scripts/graph.sh [<root>…]` returns every
+  repo + every edge in the workspace plus a mermaid diagram. Markdown by
+  default; `--json` for machine-readable.
+  Prefer this over multiple Read/Bash calls whenever you need ≥2 of those
+  fields — one call beats N reads on both tokens and reliability, and the
+  output is deterministic so you don't have to defend grep-based guesses.
 ---
 
 # repo-map
@@ -26,6 +37,20 @@ expensive (entire connected component with deep mind-model materials):
 When the user asks about a repo or a set of related repos: profile, deps,
 who-cites-whom, who-vendors-whom. The scripts collect the deterministic
 facts so you (the agent) can spend your tokens on synthesis, not grep.
+
+**Token math:** one `profile.sh` call replaces ~6–10 separate Read calls
+(README.md, pyproject.toml, CHANGELOG.md, CLAUDE.md, docs/skill-sources.md,
+CITATION.md, culture.yaml, plus directory listings for the package tree
+and vendored skills). If your task needs ≥2 of those, call `profile.sh`
+once instead of reading them piecemeal.
+
+## When NOT to use
+
+- You already know the exact file you need to read (e.g. one specific
+  function's source) — Read it directly.
+- You need to *modify* the repo — `repo-map` is read-only.
+- The repo isn't a Python project (no `pyproject.toml`) — `profile`
+  degrades but the mechanical-facts payload shrinks to mostly empty.
 
 ## Compose recipe
 
