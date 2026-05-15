@@ -40,6 +40,15 @@ questions:
         - "claude-agent-sdk"
         - "pytest -n auto"
         - "culture.cli:main"
+      daria:
+        - "Data Refinery Intelligent Agent"
+        - "awareness pillar"
+        - pyproject.toml
+        - "uv run pytest -v"
+        - "daria/logger.py"
+        - "daria/skills/investigate.py"
+        - "daria/skills/inspect.py"
+        - "culture.yaml"
 
   - id: q-connections-1hop
     type: connections
@@ -57,6 +66,14 @@ questions:
         - "opentelemetry"
         - cicd
         - version-bump
+      daria:
+        - culture
+        - "vanilla Culture agent"
+        - playwright
+        - "pr-review"
+        - "opencode"
+        - "skills/daria/SKILL.md"
+        - "culture.clients.opencode.skill.irc_client"
 
   - id: q-graph-workspace
     type: graph
@@ -83,6 +100,14 @@ questions:
         - "culture/bots/"
         - "culture/persistence.py"
         - "culture.cli:main"
+      daria:
+        - "daria/logger.py"
+        - "daria/skills/investigate.py"
+        - "daria/skills/inspect.py"
+        - "fetch_page"
+        - "JSONL"
+        - "config/agents.example.yaml"
+        - "skills/daria/SKILL.md"
 
   - id: q-transfer-cli
     type: transfer
@@ -99,6 +124,14 @@ questions:
         - hatchling
         - "culture/cli/__init__.py"
         - subcommand
+        - "uv sync"
+      daria:
+        - pyproject.toml
+        - hatchling
+        - "culture server start"
+        - "culture start"
+        - "config/agents.example.yaml"
+        - "culture.yaml"
         - "uv sync"
 
   - id: q-transfer-quality
@@ -118,3 +151,10 @@ questions:
         - "pytest-cov"
         - SonarCloud
         - version-check
+      daria:
+        - "tests.yml"
+        - "pages.yml"
+        - "uv run pytest -v"
+        - "pytest-asyncio"
+        - "uv sync --extra dev"
+        - "asyncio_mode = \"auto\""
