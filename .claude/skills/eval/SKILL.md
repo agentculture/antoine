@@ -16,7 +16,7 @@ description: >
 This skill drives one **set** of the scripts-eval harness:
 one `(target, question)` row × 3 trials × one arm.
 
-The harness pipeline (`capture` / `validate` / `judge` / `report`) and
+The harness pipeline (`trial` / `validate` / `judge` / `summarize`) and
 the corpus (`corpus.yaml`) are repo state — this skill is just the
 operator procedure that sequences them per session.
 
@@ -42,6 +42,17 @@ state. Stop and ask if any of these hold:
 ```bash
 env | grep -E "^SEER_EVAL_(RUN_ID|ARM)="
 # expect both set to the intended round / arm
+```
+
+The fastest way to set these (and arm-A's `repo-map` disable) before
+launching `claude` is the `switch-arm.sh` helper — sourced from your
+shell, idempotent across re-runs:
+
+```bash
+# arm-A session:
+source experiments/scripts_eval/switch-arm.sh A 2026-05-NN-round-XX
+# arm-C session (same run id, different arm):
+source experiments/scripts_eval/switch-arm.sh C 2026-05-NN-round-XX
 ```
 
 If this is the first set of the run (idempotent, safe to re-run):
@@ -77,19 +88,31 @@ uv run --group experiments python -m experiments.scripts_eval.manifest \
      - <one path per line>
    ```
 
-3. Dispatch **one** `Explore` subagent with that full prompt.
-
-4. After the subagent finishes, run capture:
+3. **Before dispatch** — start the trial. The script reads
+   `CLAUDE_CODE_SESSION_ID` from env, stamps an in-flight record, and
+   prints the `trial_id` to stdout:
 
    ```bash
-   uv run --group experiments python -m experiments.scripts_eval.capture \
-       --run $SEER_EVAL_RUN_ID --repo <target> \
-       --question <question_id> --trial <n>
+   TRIAL_ID=$(uv run --group experiments python -m experiments.scripts_eval.trial \
+       start --run $SEER_EVAL_RUN_ID --arm $SEER_EVAL_ARM \
+       --target <target> --question <question_id> --trial <n>)
    ```
 
-   (For the workspace-scope question, omit `--repo`.)
+   (For the workspace-scope question, omit `--target`.)
 
-5. Confirm the cell JSON appeared under
+4. Dispatch **one** `Explore` subagent with the full prompt.
+
+5. After the subagent finishes, end the trial. The script reads the
+   subagent's sidechain transcript from
+   `~/.claude/projects/<encoded_cwd>/<session>/subagents/agent-*.jsonl`
+   and writes the cell JSON:
+
+   ```bash
+   uv run --group experiments python -m experiments.scripts_eval.trial \
+       end --trial-id "$TRIAL_ID"
+   ```
+
+6. Confirm the cell JSON appeared under
    `experiments/scripts_eval/results/$SEER_EVAL_RUN_ID/arm-A/`.
 
 **After all 3 trials**, summarize + commit:
@@ -136,15 +159,18 @@ If fewer than 3, stop — arm A must complete first.
      - <one path per line>
    ```
 
-2. Dispatch one `Explore` subagent.
-
-3. Capture:
+2. Bookend the dispatch with `trial start` and `trial end`:
 
    ```bash
-   uv run --group experiments python -m experiments.scripts_eval.capture \
-       --run $SEER_EVAL_RUN_ID --repo <target> \
-       --question <question_id> --trial <n>
+   TRIAL_ID=$(uv run --group experiments python -m experiments.scripts_eval.trial \
+       start --run $SEER_EVAL_RUN_ID --arm $SEER_EVAL_ARM \
+       --target <target> --question <question_id> --trial <n>)
+   # dispatch one Explore subagent with the rendered prompt above
+   uv run --group experiments python -m experiments.scripts_eval.trial \
+       end --trial-id "$TRIAL_ID"
    ```
+
+   (For the workspace-scope question, omit `--target`.)
 
 ### Judge phase
 

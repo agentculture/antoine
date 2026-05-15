@@ -21,16 +21,6 @@
           }
         ]
       }
-    ],
-    "SubagentStop": [
-      {
-        "hooks": [
-          {
-            "type": "command",
-            "command": "uv run --group experiments python -m experiments.scripts_eval.hooks.subagent_stop"
-          }
-        ]
-      }
     ]
   }
 }
