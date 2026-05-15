@@ -29,6 +29,13 @@ def run(payload: dict, now: Callable[[], float] = time.time) -> int:
         return 0
     if payload.get("tool_name") != "Agent":
         return 0
+    tool_input = payload.get("tool_input", {}) or {}
+    description = tool_input.get("description") or ""
+    # Skip judge subagent dispatches so they don't pollute raw/ — capture.py
+    # picks the oldest-mtime *.jsonl regardless of origin, and an orphan
+    # judge file would risk being consumed as the wrong tester cell.
+    if description.startswith("scripts_eval judge:"):
+        return 0
     arm = _io.eval_arm()
     if arm is None:
         print(
@@ -38,7 +45,6 @@ def run(payload: dict, now: Callable[[], float] = time.time) -> int:
         )
         return 0
     sid = _subagent_id(run_id, arm)
-    tool_input = payload.get("tool_input", {}) or {}
     record = {
         "event": "pre_tool",
         "subagent_id": sid,

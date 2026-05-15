@@ -68,3 +68,24 @@ def test_warns_and_skips_when_arm_unset(monkeypatch, tmp_path, capsys):
     captured = capsys.readouterr()
     assert "SEER_EVAL_ARM" in captured.err
     assert not (tmp_path / "experiments" / "scripts_eval" / "results").exists()
+
+
+def test_pre_tool_skips_scripts_eval_judge_dispatch(monkeypatch, tmp_path):
+    """Judge subagent dispatches must not pollute raw/ — capture.py picks
+    the oldest-mtime *.jsonl regardless of origin, so an orphan judge file
+    would risk being consumed as the wrong tester cell.
+
+    Contract: any Agent dispatch whose tool_input.description starts with
+    'scripts_eval judge:' is skipped by the pre_tool hook.
+    """
+    monkeypatch.setenv("SEER_EVAL_RUN_ID", "r1")
+    monkeypatch.setenv("SEER_EVAL_ARM", "C")
+    monkeypatch.setattr(pre_tool._io, "REPO_ROOT", tmp_path)
+
+    payload = _payload(prompt="judge prompt body")
+    payload["tool_input"]["description"] = "scripts_eval judge: agtag/q-profile-overview/1"
+
+    rc = pre_tool.run(payload, now=lambda: 1700000000.0)
+    assert rc == 0
+    raw_dir = tmp_path / "experiments" / "scripts_eval" / "results" / "r1" / "raw"
+    assert not raw_dir.exists() or not list(raw_dir.glob("*.jsonl"))
