@@ -208,6 +208,165 @@ def test_render_connections_markdown_inlines_errors() -> None:
     assert "TOML syntax error." in md
 
 
+def test_render_profile_markdown_build_test_positive() -> None:
+    """build_test section renders as bullet list preceded by --- separator."""
+    fx = _shallow_fixture()
+    fx["build_test"] = {
+        "test_command": "pytest",
+        "test_addopts": "-n auto",
+        "coverage_fail_under": 80,
+        "python_requires": ">=3.11",
+    }
+    md = render_profile_markdown(fx)
+    assert "## Build & test" in md
+    idx = md.index("## Build & test")
+    prefix = md[:idx]
+    assert prefix.rstrip().endswith("---"), "no `---` before ## Build & test"
+    assert "- test_command: pytest" in md
+    assert "- test_addopts: -n auto" in md
+    assert "- coverage_fail_under: 80" in md
+    assert "- python_requires: >=3.11" in md
+
+
+def test_render_profile_markdown_build_test_negative() -> None:
+    """build_test section absent when field is None."""
+    fx = _shallow_fixture()
+    fx["build_test"] = None
+    md = render_profile_markdown(fx)
+    assert "## Build & test" not in md
+
+
+def test_render_profile_markdown_ci_workflows_positive() -> None:
+    """ci_workflows section renders as markdown table preceded by --- separator."""
+    fx = _shallow_fixture()
+    fx["ci_workflows"] = [
+        {"file": "publish.yml", "name": "Publish"},
+        {"file": "tests.yml", "name": "Tests"},
+    ]
+    md = render_profile_markdown(fx)
+    assert "## CI workflows" in md
+    idx = md.index("## CI workflows")
+    prefix = md[:idx]
+    assert prefix.rstrip().endswith("---"), "no `---` before ## CI workflows"
+    assert "| File | Name |" in md
+    assert "| publish.yml | Publish |" in md
+    assert "| tests.yml | Tests |" in md
+
+
+def test_render_profile_markdown_ci_workflows_negative() -> None:
+    """ci_workflows section absent when list is empty."""
+    fx = _shallow_fixture()
+    fx["ci_workflows"] = []
+    md = render_profile_markdown(fx)
+    assert "## CI workflows" not in md
+
+
+def test_render_profile_markdown_publish_target_positive() -> None:
+    """publish_target section renders as bullet block preceded by --- separator."""
+    fx = _shallow_fixture()
+    fx["publish_target"] = {"kind": "pypi", "workflow": "publish.yml", "trigger": "push: tags"}
+    md = render_profile_markdown(fx)
+    assert "## Publish target" in md
+    idx = md.index("## Publish target")
+    prefix = md[:idx]
+    assert prefix.rstrip().endswith("---"), "no `---` before ## Publish target"
+    assert "- kind: pypi" in md
+    assert "- workflow: publish.yml" in md
+    assert "- trigger: push: tags" in md
+
+
+def test_render_profile_markdown_publish_target_negative() -> None:
+    """publish_target section absent when field is None."""
+    fx = _shallow_fixture()
+    fx["publish_target"] = None
+    md = render_profile_markdown(fx)
+    assert "## Publish target" not in md
+
+
+def test_render_profile_markdown_git_remote_positive() -> None:
+    """git_remote section renders all keys preceded by --- separator."""
+    fx = _shallow_fixture()
+    fx["git_remote"] = {
+        "host": "github.com",
+        "owner": "agentculture",
+        "repo": "seer-cli",
+        "url": "git@github.com:agentculture/seer-cli.git",
+        "ref": "origin",
+    }
+    md = render_profile_markdown(fx)
+    assert "## Git remote" in md
+    idx = md.index("## Git remote")
+    prefix = md[:idx]
+    assert prefix.rstrip().endswith("---"), "no `---` before ## Git remote"
+    assert "host" in md
+    assert "github.com" in md
+    assert "agentculture" in md
+
+
+def test_render_profile_markdown_git_remote_negative() -> None:
+    """git_remote section absent when field is None."""
+    fx = _shallow_fixture()
+    fx["git_remote"] = None
+    md = render_profile_markdown(fx)
+    assert "## Git remote" not in md
+
+
+def test_render_profile_markdown_module_summaries_positive() -> None:
+    """module_summaries section renders as table preceded by --- separator."""
+    fx = _shallow_fixture()
+    fx["module_summaries"] = [
+        {"module": "pkg/__init__.py", "summary": "Package init."},
+        {"module": "pkg/cli.py", "summary": "Command-line entry point."},
+    ]
+    md = render_profile_markdown(fx)
+    assert "## Module summaries" in md
+    idx = md.index("## Module summaries")
+    prefix = md[:idx]
+    assert prefix.rstrip().endswith("---"), "no `---` before ## Module summaries"
+    assert "| Module | Summary |" in md
+    assert "| pkg/__init__.py | Package init. |" in md
+    assert "| pkg/cli.py | Command-line entry point. |" in md
+
+
+def test_render_profile_markdown_module_summaries_negative() -> None:
+    """module_summaries section absent when list is empty."""
+    fx = _shallow_fixture()
+    fx["module_summaries"] = []
+    md = render_profile_markdown(fx)
+    assert "## Module summaries" not in md
+
+
+def test_render_profile_markdown_section_ordering() -> None:
+    """Tier-1 sections appear in specified order in the rendered output."""
+    fx = _shallow_fixture()
+    fx["build_test"] = {"test_command": "pytest"}
+    fx["ci_workflows"] = [{"file": "tests.yml", "name": "Tests"}]
+    fx["publish_target"] = {"kind": "pypi", "workflow": "publish.yml", "trigger": "push: tags"}
+    fx["git_remote"] = {"host": "github.com", "owner": "x", "repo": "y", "url": "u", "ref": "origin"}
+    fx["module_summaries"] = [{"module": "x.py", "summary": "X."}]
+    md = render_profile_markdown(fx)
+    # Extract positions of all expected section headings
+    sections = [
+        "## Runtime dependencies",
+        "## Package layout",
+        "## Build & test",
+        "## CI workflows",
+        "## Publish target",
+        "## Git remote",
+        "## Module summaries",
+        "## Vendored skills",
+        "## Citations",
+        "## Recent changelog",
+        "## Project status",
+        "## Extra",
+    ]
+    positions = []
+    for s in sections:
+        assert s in md, f"missing section: {s}"
+        positions.append(md.index(s))
+    assert positions == sorted(positions), "sections are not in expected order"
+
+
 def test_render_graph_markdown_includes_mermaid() -> None:
     g = {
         "roots": ["/home/user/projects"],
