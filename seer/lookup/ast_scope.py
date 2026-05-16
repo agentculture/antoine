@@ -22,6 +22,17 @@ class Scope:
     end_line: int
 
 
+def _scope_kind(node: ast.AST) -> str | None:
+    """Return the scope kind string for *node*, or ``None`` if not a named scope."""
+    if isinstance(node, ast.AsyncFunctionDef):
+        return "async_function"
+    if isinstance(node, ast.ClassDef):
+        return "class"
+    if isinstance(node, ast.FunctionDef):
+        return "function"
+    return None
+
+
 def list_symbols(tree: ast.AST) -> list[Scope]:
     """Walk *tree* and return one :class:`Scope` per named scope.
 
@@ -37,18 +48,15 @@ def list_symbols(tree: ast.AST) -> list[Scope]:
 
     def visit(node: ast.AST, prefix: str = "") -> None:
         for child in ast.iter_child_nodes(node):
-            if isinstance(child, (ast.FunctionDef, ast.AsyncFunctionDef, ast.ClassDef)):
-                name = f"{prefix}{child.name}"
-                if isinstance(child, ast.AsyncFunctionDef):
-                    kind = "async_function"
-                elif isinstance(child, ast.ClassDef):
-                    kind = "class"
-                else:
-                    kind = "function"
-                end = child.end_lineno or child.lineno
-                out.append(Scope(kind=kind, name=name, start_line=child.lineno, end_line=end))
-                if isinstance(child, ast.ClassDef):
-                    visit(child, prefix=f"{name}.")
+            kind = _scope_kind(child)
+            if kind is None:
+                continue
+            name = f"{prefix}{child.name}"  # type: ignore[attr-defined]
+            end = child.end_lineno or child.lineno  # type: ignore[attr-defined]
+            start = child.lineno  # type: ignore[attr-defined]
+            out.append(Scope(kind=kind, name=name, start_line=start, end_line=end))
+            if isinstance(child, ast.ClassDef):
+                visit(child, prefix=f"{name}.")
 
     visit(tree)
     return out
