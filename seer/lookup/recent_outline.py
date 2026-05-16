@@ -130,6 +130,64 @@ def _file_diff(sha: str, file_path: str, repo_path: Path, is_initial: bool) -> d
     return entry
 
 
+def _validate_recent_args(n: int, path: str | Path) -> Path:
+    """Validate *n* and *path*; return the resolved repo Path on success."""
+    repo = Path(path)
+    if n < 1:
+        raise SeerError(
+            code=EXIT_USER_ERROR,
+            kind="user_error",
+            message=f"n must be >= 1, got {n}",
+            remediation="pass a positive integer for the commit count.",
+        )
+    if not repo.exists() or not repo.is_dir():
+        raise SeerError(
+            code=EXIT_USER_ERROR,
+            kind="user_error",
+            message=f"path is not an existing directory: {path}",
+            remediation="pass an existing directory that contains a git repository.",
+        )
+    rev_parse = _run_git(["rev-parse", "--is-inside-work-tree"], repo, allow_nonzero=True)
+    if rev_parse.returncode != 0 or rev_parse.stdout.strip() != "true":
+        raise SeerError(
+            code=EXIT_USER_ERROR,
+            kind="user_error",
+            message=f"not a git repository: {path}",
+            reason=(rev_parse.stderr.strip()[:200] or "git rev-parse rejected the path."),
+            remediation="pass a path that is inside a git work tree.",
+        )
+    return repo
+
+
+def _fetch_commit_lines(repo: Path, n: int) -> list[str]:
+    """Run `git log -n N`; return the non-empty SHA/date/subject lines.
+
+    Returns ``[]`` for the empty-repo case (exit 128 with the sentinel
+    stderr). Raises ``SeerError(EXIT_ENV_ERROR)`` for any other fatal error.
+    """
+    log_result = _run_git(
+        ["log", f"-n{n}", "--pretty=format:%H%x09%cI%x09%s"], repo, allow_nonzero=True
+    )
+    if log_result.returncode == 128:
+        stderr_lc = log_result.stderr.lower()
+        if "does not have any commits yet" not in stderr_lc and "fatal" in stderr_lc:
+            raise SeerError(
+                code=EXIT_ENV_ERROR,
+                kind="env_error",
+                message="git log failed",
+                reason=log_result.stderr.strip()[:400],
+            )
+    elif log_result.returncode != 0:
+        raise SeerError(
+            code=EXIT_ENV_ERROR,
+            kind="env_error",
+            message=f"git log exited with code {log_result.returncode}",
+            reason=log_result.stderr.strip()[:400],
+        )
+    raw_log = log_result.stdout.strip()
+    return raw_log.splitlines() if raw_log else []
+
+
 def recent_with_outline(n: int = 20, path: str | Path = ".") -> dict[str, Any]:
     """Return the last *n* commits in *path*, each paired with AST symbol diffs.
 
@@ -154,67 +212,9 @@ def recent_with_outline(n: int = 20, path: str | Path = ".") -> dict[str, Any]:
         SeerError(EXIT_USER_ERROR): *n* < 1 or *path* is not an existing directory.
         SeerError(EXIT_ENV_ERROR):  git not found, or git exits with a fatal error.
     """
-    repo = Path(path)
-
-    if n < 1:
-        raise SeerError(
-            code=EXIT_USER_ERROR,
-            kind="user_error",
-            message=f"n must be >= 1, got {n}",
-            remediation="pass a positive integer for the commit count.",
-        )
-    if not repo.exists() or not repo.is_dir():
-        raise SeerError(
-            code=EXIT_USER_ERROR,
-            kind="user_error",
-            message=f"path is not an existing directory: {path}",
-            remediation="pass an existing directory that contains a git repository.",
-        )
-
-    # Validate that path is inside a git work tree before running git log.
-    rev_parse = _run_git(
-        ["rev-parse", "--is-inside-work-tree"],
-        repo,
-        allow_nonzero=True,
-    )
-    if rev_parse.returncode != 0 or rev_parse.stdout.strip() != "true":
-        raise SeerError(
-            code=EXIT_USER_ERROR,
-            kind="user_error",
-            message=f"not a git repository: {path}",
-            reason=(rev_parse.stderr.strip()[:200] or "git rev-parse rejected the path."),
-            remediation="pass a path that is inside a git work tree.",
-        )
-
-    # Retrieve the last n commits: SHA <TAB> ISO date <TAB> subject
-    log_result = _run_git(
-        ["log", f"-n{n}", "--pretty=format:%H%x09%cI%x09%s"],
-        repo,
-        allow_nonzero=True,
-    )
-
-    # git log exits 128 in a completely empty repo (no commits at all).
-    # Only treat exit 128 as "empty repo" when the sentinel phrase is present;
-    # any other fatal error is surfaced as EXIT_ENV_ERROR.
-    if log_result.returncode == 128:
-        stderr_lc = log_result.stderr.lower()
-        if "does not have any commits yet" not in stderr_lc and "fatal" in stderr_lc:
-            raise SeerError(
-                code=EXIT_ENV_ERROR,
-                kind="env_error",
-                message="git log failed",
-                reason=log_result.stderr.strip()[:400],
-            )
-    elif log_result.returncode != 0:
-        raise SeerError(
-            code=EXIT_ENV_ERROR,
-            kind="env_error",
-            message=f"git log exited with code {log_result.returncode}",
-            reason=log_result.stderr.strip()[:400],
-        )
-
-    raw_log = log_result.stdout.strip()
-    if not raw_log:
+    repo = _validate_recent_args(n, path)
+    commit_lines = _fetch_commit_lines(repo, n)
+    if not commit_lines:
         return {"commits": []}
 
     # Determine which commit is the initial commit (no parent).
@@ -228,7 +228,7 @@ def recent_with_outline(n: int = 20, path: str | Path = ".") -> dict[str, Any]:
 
     commits: list[dict[str, Any]] = []
 
-    for line in raw_log.splitlines():
+    for line in commit_lines:
         parts = line.split("\t", 2)
         if len(parts) < 3:
             continue
