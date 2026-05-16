@@ -15,6 +15,11 @@ VIOLATION_PATTERNS = (
     "seer.repo",
     "seer/repo",
     "python -m seer",
+    "skills/code-lookup/scripts/",
+    "seer.lookup",
+    "seer grep",
+    "seer recent",
+    "seer classify",
 )
 
 
@@ -28,7 +33,7 @@ def _arm_used_scripts(cell: dict) -> bool:
 
 def _load(rd: Path) -> dict:
     by_pair = {}
-    for arm in ("A", "C"):
+    for arm in _io.ARMS:
         for fp in sorted((rd / f"arm-{arm}").glob("*.json")):
             cell = _io.read_json(fp)
             key = (
@@ -42,32 +47,36 @@ def _load(rd: Path) -> dict:
 
 def _format_pair(key, pair: dict) -> str:
     repo, qid, trial = key
-    a, c = pair.get("A"), pair.get("C")
-    av = (a or {}).get("validation", {}) or {}
-    cv = (c or {}).get("validation", {}) or {}
     parts = [f"### {repo} / {qid} / t{trial}"]
+    a, c = pair.get("A"), pair.get("C")
     if a and c:
         judge = a.get("judge") or c.get("judge") or {}
         cmp_ = judge.get("comparison", {}) or {}
         if cmp_:
             parts.append(
-                f"Winner: **{cmp_.get('winner', '?')}** "
+                f"A-vs-C winner: **{cmp_.get('winner', '?')}** "
                 f"({cmp_.get('margin', '?')}) — {cmp_.get('reasoning', '')}"
             )
-        parts.append(f"validation A={av.get('score', '-')} / C={cv.get('score', '-')}")
-        a_dur = (a.get("subagent") or {}).get("duration_seconds")
-        c_dur = (c.get("subagent") or {}).get("duration_seconds")
-        a_tok = ((a.get("subagent") or {}).get("tokens") or {}).get("input", 0) + (
-            (a.get("subagent") or {}).get("tokens") or {}
-        ).get("output", 0)
-        c_tok = ((c.get("subagent") or {}).get("tokens") or {}).get("input", 0) + (
-            (c.get("subagent") or {}).get("tokens") or {}
-        ).get("output", 0)
-        parts.append(f"duration A={a_dur}s / C={c_dur}s; total tokens A={a_tok} / C={c_tok}")
     elif a:
         parts.append("(no C cell)")
     elif c:
         parts.append("(no A cell)")
+
+    # Per-arm validation + duration + tokens (loop over every arm we have)
+    rows = []
+    for arm in _io.ARMS:
+        cell = pair.get(arm)
+        if not cell:
+            continue
+        v = (cell.get("validation") or {}).get("score", "-")
+        sub = cell.get("subagent") or {}
+        dur = sub.get("duration_seconds")
+        tok = sub.get("tokens") or {}
+        tok_total = (tok.get("input", 0) or 0) + (tok.get("output", 0) or 0)
+        rows.append(f"- {arm}: validation={v}; duration={dur}s; tokens={tok_total}")
+    if rows:
+        parts.extend(rows)
+
     return "\n".join(parts)
 
 
@@ -75,19 +84,22 @@ def _format_violations(by_pair: dict) -> list[str]:
     rows = []
     for (repo, qid, trial), pair in sorted(by_pair.items()):
         if "A" in pair and _arm_used_scripts(pair["A"]):
-            rows.append(f"- A_used_scripts: {repo} / {qid} / t{trial}")
+            rows.append(f"- A_used_scripts (rider violation): {repo} / {qid} / t{trial}")
+        if "B" in pair and not _arm_used_scripts(pair["B"]):
+            rows.append(f"- B_did_not_use_scripts (rider ignored): {repo} / {qid} / t{trial}")
         if "C" in pair and not _arm_used_scripts(pair["C"]):
-            rows.append(f"- C_did_not_use_scripts: {repo} / {qid} / t{trial}")
+            rows.append(f"- C_did_not_use_scripts (no organic adoption): {repo} / {qid} / t{trial}")
     return rows
 
 
 def _aggregate(by_pair: dict) -> str:
-    a_scores, c_scores, c_wins = [], [], 0
+    scores: dict[str, list[float]] = {arm: [] for arm in _io.ARMS}
+    c_wins = 0
     for pair in by_pair.values():
-        if "A" in pair and pair["A"].get("validation"):
-            a_scores.append(pair["A"]["validation"]["score"])
-        if "C" in pair and pair["C"].get("validation"):
-            c_scores.append(pair["C"]["validation"]["score"])
+        for arm in _io.ARMS:
+            v = (pair.get(arm) or {}).get("validation")
+            if v:
+                scores[arm].append(v["score"])
         for arm in ("A", "C"):
             j = (pair.get(arm) or {}).get("judge") or {}
             cmp_ = j.get("comparison", {}) or {}
@@ -95,11 +107,12 @@ def _aggregate(by_pair: dict) -> str:
                 c_wins += 1
                 break  # don't double-count the same pair
     lines = ["## Aggregate"]
-    if a_scores:
-        lines.append(f"- median validation A: {median(a_scores):.3f} (n={len(a_scores)})")
-    if c_scores:
-        lines.append(f"- median validation C: {median(c_scores):.3f} (n={len(c_scores)})")
-    lines.append(f"- judge C wins: {c_wins}")
+    for arm in _io.ARMS:
+        if scores[arm]:
+            lines.append(
+                f"- median validation {arm}: {median(scores[arm]):.3f} " f"(n={len(scores[arm])})"
+            )
+    lines.append(f"- judge C wins (A-vs-C pairs): {c_wins}")
     return "\n".join(lines)
 
 

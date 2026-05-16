@@ -511,3 +511,133 @@ class TestRecord:
                 rubric_version="v1",
                 judge_model="m",
             )
+
+
+def _seed_pair_ab(
+    rd: Path,
+    qid: str,
+    repo: str | None,
+    trial: int,
+    *,
+    a_text: str = "answer from arm A",
+    b_text: str = "answer from arm B",
+    question_text: str | None = None,
+) -> None:
+    q = question_text if question_text is not None else f"What does {repo or 'this workspace'} do?"
+    for arm, text in (("A", a_text), ("B", b_text)):
+        cell = {
+            "run_id": "r1",
+            "arm": arm,
+            "repo_id": repo,
+            "question_id": qid,
+            "trial": trial,
+            "answer_text": text,
+            "question_text": q,
+            "subagent": {},
+            "validation": {"score": 0.5},
+        }
+        suffix = repo or "_workspace_"
+        out = rd / f"arm-{arm}" / f"{suffix}-{qid}-t{trial}.json"
+        _io.write_json(out, cell)
+
+
+class TestPairAware:
+    """Tests for the pair-aware (AB / BC) judge path."""
+
+    def test_iter_jobs_pair_ab_yields_blind_labels_for_a_and_b(self, monkeypatch, tmp_path):
+        monkeypatch.setattr(_io, "REPO_ROOT", tmp_path)
+        rd = _io.run_dir("r1")
+        rd.mkdir(parents=True)
+        _seed_pair_ab(rd, "q1", "culture", 1)
+
+        rng = random.Random(0)  # noqa: S311
+        jobs = list(
+            judge.iter_jobs_pair(
+                "r1",
+                pair="AB",
+                rubric_text="r",
+                rubric_version="v1",
+                judge_model="m",
+                rng=rng,
+            )
+        )
+        assert len(jobs) == 1
+        job = jobs[0]
+        assert job["pair"] == "AB"
+        assert job["pair_key"] == "culture/q1/1"
+        assert "blind_label_for_A" in job
+        assert "blind_label_for_B" in job
+        assert "blind_label_for_C" not in job
+        assert {job["blind_label_for_A"], job["blind_label_for_B"]} == {
+            "answer_X",
+            "answer_Y",
+        }
+
+    def test_record_verdict_pair_writes_judges_block(self, monkeypatch, tmp_path):
+        monkeypatch.setattr(_io, "REPO_ROOT", tmp_path)
+        rd = _io.run_dir("r1")
+        rd.mkdir(parents=True)
+        _seed_pair_ab(rd, "q1", "culture", 1)
+
+        path_a, path_b = judge.record_verdict_pair(
+            "r1",
+            pair="AB",
+            pair_key="culture/q1/1",
+            verdict_text='{"winner": "Y", "margin": "clear", "reasoning": "B wins"}',
+            label_x="answer_X",  # A
+            label_y="answer_Y",  # B
+            rubric_version="v1",
+            judge_model="m",
+        )
+        a_cell = _io.read_json(path_a)
+        b_cell = _io.read_json(path_b)
+        assert a_cell["judges"]["AB"]["comparison"]["winner"] == "B"
+        assert a_cell["judges"]["AB"]["pair"] == "AB"
+        # AB pair must NOT mirror to the legacy cell["judge"] (that field
+        # is reserved for AC pair back-compat).
+        assert "judge" not in a_cell
+        assert a_cell["judges"]["AB"] == b_cell["judges"]["AB"]
+        cmp_ = a_cell["judges"]["AB"]["comparison"]
+        assert cmp_["blind_label_for_A"] == "answer_X"
+        assert cmp_["blind_label_for_B"] == "answer_Y"
+
+    def test_record_verdict_ac_mirrors_to_legacy_judge_field(self, monkeypatch, tmp_path):
+        """AC pair: writes both cell["judges"]["AC"] and cell["judge"] so
+        readers that haven't migrated continue to work."""
+        monkeypatch.setattr(_io, "REPO_ROOT", tmp_path)
+        rd = _io.run_dir("r1")
+        rd.mkdir(parents=True)
+        _seed_pair(rd, "q1", "culture", 1)
+
+        path_a, path_c = judge.record_verdict_pair(
+            "r1",
+            pair="AC",
+            pair_key="culture/q1/1",
+            verdict_text='{"winner": "X", "margin": "clear", "reasoning": ""}',
+            label_x="answer_X",
+            label_y="answer_Y",
+            rubric_version="v1",
+            judge_model="m",
+        )
+        a_cell = _io.read_json(path_a)
+        assert a_cell["judges"]["AC"]["comparison"]["winner"] == "A"
+        # Legacy mirror present and identical to the new field.
+        assert a_cell["judge"] == a_cell["judges"]["AC"]
+
+    def test_record_verdict_pair_rejects_unknown_pair(self, monkeypatch, tmp_path):
+        monkeypatch.setattr(_io, "REPO_ROOT", tmp_path)
+        rd = _io.run_dir("r1")
+        rd.mkdir(parents=True)
+        _seed_pair(rd, "q1", "culture", 1)
+
+        with pytest.raises(ValueError, match="pair must be one of"):
+            judge.record_verdict_pair(
+                "r1",
+                pair="ZZ",
+                pair_key="culture/q1/1",
+                verdict_text='{"winner": "X", "margin": "tie", "reasoning": ""}',
+                label_x="answer_X",
+                label_y="answer_Y",
+                rubric_version="v1",
+                judge_model="m",
+            )

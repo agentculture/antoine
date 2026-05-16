@@ -26,8 +26,13 @@ def test_eval_arm_returns_value_when_set(monkeypatch):
 
 def test_eval_arm_rejects_invalid(monkeypatch):
     monkeypatch.setenv("SEER_EVAL_ARM", "Q")
-    with pytest.raises(ValueError, match="SEER_EVAL_ARM must be 'A' or 'C'"):
+    with pytest.raises(ValueError, match=r"SEER_EVAL_ARM must be one of \('A', 'B', 'C'\)"):
         _io.eval_arm()
+
+
+def test_eval_arm_accepts_b(monkeypatch):
+    monkeypatch.setenv("SEER_EVAL_ARM", "B")
+    assert _io.eval_arm() == "B"
 
 
 def test_run_dir_constructs_path_under_results(tmp_path, monkeypatch):

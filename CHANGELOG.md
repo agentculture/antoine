@@ -5,6 +5,21 @@ All notable changes to this project will be documented in this file.
 Format follows [Keep a Changelog](https://keepachangelog.com/). This project
 adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.8.0] - 2026-05-16
+
+### Added
+
+- scripts-eval: arm-B (directed-use) — rider explicitly instructs the subagent to use repo-map + code-lookup scripts. Cells captured under results/<run>/arm-B/. corpus.yaml arms field becomes [A, B, C].
+- scripts-eval: judge.py is now pair-aware. judge prepare / judge record take --pair AC|AB|BC; new label flag --blind-label-for-b. Verdicts land under cell["judges"][pair]; AC pair still mirrors to legacy cell["judge"] for back-compat. New iter_jobs_pair / record_verdict_pair public APIs; old iter_jobs / record_verdict stay as AC-pair wrappers.
+- scripts-eval: summarize.py renders both A-vs-B and A-vs-C winner tallies in the run-state table, with per-pair verdict tables in the evidence section.
+- eval skill: arm-A rider tightened to also forbid the code-lookup skill / seer.lookup / seer grep/recent/classify so "without" means without both new skills. Added arm-B procedure section and pair-aware judge procedure (--pair AB | AC).
+
+### Changed
+
+- eval skill: switch-arm.sh no longer moves .claude/skills/repo-map/ on disk; arm-A relies on the verbal rider alone (rider proved sufficient; move-aside dance made operator setup brittle).
+- scripts-eval: report.py violation patterns now also flag code-lookup script use; report aggregates median validation across all three arms; per-cell view shows every captured arm.
+- scripts-eval: validate.py / backfill.py iterate over _io.ARMS instead of hardcoding (A, C).
+
 ## [0.7.1] - 2026-05-16
 
 ### Changed

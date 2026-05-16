@@ -58,8 +58,9 @@ def test_report_summarises_pair(monkeypatch, tmp_path):
     assert out_path == rd / "REPORT.md"
     assert "# scripts-eval — run `r1`" in text
     assert "culture / q1 / t1" in text
-    assert "Winner: **C** (clear)" in text
-    assert "validation A=0.75 / C=0.75" in text
+    assert "A-vs-C winner: **C** (clear)" in text
+    assert "A: validation=0.75" in text
+    assert "C: validation=0.75" in text
 
 
 def test_report_flags_arm_violations(monkeypatch, tmp_path):

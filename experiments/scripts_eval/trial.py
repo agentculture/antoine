@@ -339,7 +339,7 @@ def _build_parser() -> argparse.ArgumentParser:
 
     s = sub.add_parser("start", help="record start_time + session_id before Agent dispatch")
     s.add_argument("--run", required=True)
-    s.add_argument("--arm", required=True, choices=["A", "C"])
+    s.add_argument("--arm", required=True, choices=["A", "B", "C"])
     s.add_argument(
         "--target",
         default=None,

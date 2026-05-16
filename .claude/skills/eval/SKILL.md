@@ -7,8 +7,11 @@ description: >
   dispatches + records, then `summarize` + commit to the round's
   accumulator file. Use when the user says "run eval set", "eval",
   "scripts-eval", "round-NN set", or asks to execute a row of the corpus.
-  Two sessions per `(target, question)` pair — arm A first, arm C second
-  (which also runs the judges, summary, and commit).
+  Three arms: A (banned — rider forbids the seer skills), B (directed
+  — rider instructs use of seer skills), C (organic — rider permits
+  but doesn't direct). Two judge pairs: A-vs-B ("do the skills help
+  when used") and A-vs-C ("do the skills get adopted organically").
+  `judge prepare --pair AB|AC` selects the pair.
 ---
 
 # scripts-eval — running a set
@@ -28,14 +31,31 @@ state. Stop and ask if any of these hold:
 - `env | grep SEER_EVAL_RUN_ID` is empty → the harness hooks no-op, no
   metrics get captured. Operator needs to re-launch with the env vars
   exported.
-- `SEER_EVAL_ARM=A` but the available-skills list at session start
-  includes `repo-map` → defense-in-depth is broken. Ask the operator
-  to move `.claude/skills/repo-map/` aside before relaunch.
-- `SEER_EVAL_ARM=C` but `repo-map` is NOT listed → arm C is being run
-  without the equipment under test. Same fix.
+- `SEER_EVAL_ARM` is set to anything other than `A`, `B`, or `C` → bad config.
 - User says "do arm C" but the matching arm-A cells don't exist on
   disk under `experiments/scripts_eval/results/$SEER_EVAL_RUN_ID/arm-A/`
   → arm A must complete first; there's nothing to pair against.
+
+All three arms run with `repo-map` and `code-lookup` enabled on disk.
+Arm-A's constraint is **verbal** — the rider in the dispatched prompt
+is the sole guard against the subagent using the seer skills. Do not
+edit the rider; copy it verbatim. (Earlier versions of this skill
+physically moved `.claude/skills/repo-map/` aside for arm A as
+defense-in-depth; that step was dropped because the rider proved
+sufficient and the move-aside dance made operator setup brittle.)
+
+Three arms, three questions they answer:
+
+- **A (banned)** — verbal rider forbids both seer skills. Establishes
+  the "without the new skills" baseline.
+- **B (directed)** — verbal rider instructs the subagent to use the
+  seer skills where applicable. Establishes the "with the new skills,
+  when actually used" upper bound.
+- **C (organic)** — verbal rider permits but does not direct use of
+  the seer skills. Measures organic adoption rate.
+
+A-vs-B is the primary "do the skills help?" comparison; A-vs-C is the
+adoption canary. The judge supports both pairs via the `--pair` flag.
 
 ## Preflight (every session)
 
@@ -44,16 +64,19 @@ env | grep -E "^SEER_EVAL_(RUN_ID|ARM)="
 # expect both set to the intended round / arm
 ```
 
-The fastest way to set these (and arm-A's `repo-map` disable) before
-launching `claude` is the `switch-arm.sh` helper — sourced from your
-shell, idempotent across re-runs:
+If unset, export them in your shell before launching `claude`:
 
 ```bash
-# arm-A session:
-source experiments/scripts_eval/switch-arm.sh A 2026-05-NN-round-XX
-# arm-C session (same run id, different arm):
-source experiments/scripts_eval/switch-arm.sh C 2026-05-NN-round-XX
+# arm-A session (banned):
+export SEER_EVAL_RUN_ID=2026-05-NN-round-XX SEER_EVAL_ARM=A
+# arm-B session (directed):
+export SEER_EVAL_RUN_ID=2026-05-NN-round-XX SEER_EVAL_ARM=B
+# arm-C session (organic):
+export SEER_EVAL_RUN_ID=2026-05-NN-round-XX SEER_EVAL_ARM=C
 ```
+
+`experiments/scripts_eval/switch-arm.sh A|B|C <run_id>` does the same
+thing.
 
 If this is the first set of the run (idempotent, safe to re-run):
 
@@ -76,9 +99,13 @@ uv run --group experiments python -m experiments.scripts_eval.manifest \
    ```text
 
    Constraints (verbatim):
-   - You may NOT use the `repo-map` skill. You may NOT invoke
-     `python -m seer.repo`, the `seer.repo` Python module, or any
-     `scripts/*.sh` paths under `.claude/skills/repo-map/`.
+   - You may NOT use the `repo-map` skill, `python -m seer.repo`,
+     the `seer.repo` Python module, or any `scripts/*.sh` paths under
+     `.claude/skills/repo-map/`.
+   - You may NOT use the `code-lookup` skill, the `seer.lookup`
+     Python module, the `seer grep` / `seer recent` / `seer classify`
+     CLI verbs, or any `scripts/*.sh` paths under
+     `.claude/skills/code-lookup/`.
      If you cannot answer without them, say so explicitly and stop.
    - Use only Read, Grep, Glob, and Bash.
    - After answering, append two sections and stop:
@@ -126,9 +153,73 @@ git add docs/eval-rounds/$SEER_EVAL_RUN_ID.md
 git commit -m "$SEER_EVAL_RUN_ID: arm-A captured for <target>/<question_id> (3 trials)"
 ```
 
-Report back: cell count under arm-A/, what's pending for arm-C on
-this set, the next pending set per the run-state table in the
+Report back: cell count under arm-A/, what's pending for arm-B and
+arm-C on this set, the next pending set per the run-state table in the
 accumulator file.
+
+## Arm-B procedure
+
+Phase 1: arm-B captures the **directed** trials so a future
+A-vs-B judge run (phase 2) can assess "do the skills help when used."
+No judge is wired for A-vs-B yet — arm-B cells are written to disk
+and shown in the run-state table only.
+
+**For each trial in {1, 2, 3}:**
+
+1. Substitute the corpus question template (same target / question
+   resolution as arm A), then append **verbatim** the arm-B rider:
+
+   ```text
+
+   Constraints (verbatim):
+   - For this question, you MUST use the seer skills where they
+     apply:
+       * `repo-map` (`scripts/profile.sh`, `scripts/connections.sh`,
+         `scripts/graph.sh` under `.claude/skills/repo-map/`) for
+         repo overview, dependencies, and workspace shape.
+       * `code-lookup` (`seer grep`, `seer recent`, `seer classify`,
+         or the equivalent scripts under
+         `.claude/skills/code-lookup/`) for symbol references,
+         recent commit-symbol diffs, and project-kind classification.
+     Only fall back to Read / Grep / Glob / Bash for facts the
+     scripts do not cover.
+   - After answering, append two sections and stop:
+     ### tools_used
+     - <ToolName>: <count>  (one line per distinct tool)
+     ### evidence
+     - <one path per line>
+   ```
+
+2. Bookend the dispatch with `trial start` and `trial end` exactly
+   as in arm A, just with `--arm B`:
+
+   ```bash
+   TRIAL_ID=$(uv run --group experiments python -m experiments.scripts_eval.trial \
+       start --run $SEER_EVAL_RUN_ID --arm $SEER_EVAL_ARM \
+       --target <target> --question <question_id> --trial <n>)
+   # dispatch one Explore subagent with the rendered prompt above
+   uv run --group experiments python -m experiments.scripts_eval.trial \
+       end --trial-id "$TRIAL_ID"
+   ```
+
+3. Confirm the cell JSON appeared under
+   `experiments/scripts_eval/results/$SEER_EVAL_RUN_ID/arm-B/`.
+
+**After all 3 trials**, summarize + commit:
+
+```bash
+uv run --group experiments python -m experiments.scripts_eval.summarize \
+    --run $SEER_EVAL_RUN_ID \
+    --out docs/eval-rounds/$SEER_EVAL_RUN_ID.md
+
+git add docs/eval-rounds/$SEER_EVAL_RUN_ID.md
+git commit -m "$SEER_EVAL_RUN_ID: arm-B captured for <target>/<question_id> (3 trials)"
+```
+
+Report back: cell count under arm-B/, whether the subagent actually
+followed the directive (look at the `### tools_used` of each arm-B
+cell — `B_did_not_use_scripts` is a finding, not a bug), the next
+pending set per the run-state table.
 
 ## Arm-C procedure
 
@@ -174,17 +265,27 @@ If fewer than 3, stop — arm A must complete first.
 
 ### Judge phase
 
-**For each trial in {1, 2, 3}:**
+Two pairs are judged independently:
 
-1. Prepare the blinded job (writes pair_key, blind labels, and the
-   already-blinded prompt with `### tools_used` / `### evidence` tails
-   stripped from both answer bodies):
+- **A-vs-C** — the original "with vs without (organic)" comparison.
+- **A-vs-B** — the new "with (directed) vs without" comparison; needs
+  arm-B cells captured first.
+
+Both pairs use the same `prepare` / `record` flow; only `--pair`
+(`AC` or `AB`) and the matching `--blind-label-for-<arm>` flags differ.
+
+**For each trial in {1, 2, 3}**, run the A-vs-C judge first (if arm-C
+cells exist) and then the A-vs-B judge (if arm-B cells exist):
+
+1. Prepare the blinded job. `--pair` defaults to `AC`; pass `--pair AB`
+   for the A-vs-B run.
 
    ```bash
    uv run --group experiments python -m experiments.scripts_eval.judge \
        prepare --run $SEER_EVAL_RUN_ID \
+       --pair AC \
        --pair-key <target>/<question_id>/<n> \
-       --seed 0 > /tmp/judge-<n>.json
+       --seed 0 > /tmp/judge-AC-<n>.json
    ```
 
 2. Materialise the prompt to a text file for dispatch (`jq -j`
@@ -192,7 +293,7 @@ If fewer than 3, stop — arm A must complete first.
    `prepare` emitted):
 
    ```bash
-   jq -j '.prompt_text' /tmp/judge-<n>.json > /tmp/judge-<n>.txt
+   jq -j '.prompt_text' /tmp/judge-AC-<n>.json > /tmp/judge-AC-<n>.txt
    ```
 
 3. Dispatch the judge subagent. **The description prefix is
@@ -201,20 +302,47 @@ If fewer than 3, stop — arm A must complete first.
    harness's `raw/` directory:
 
    - `subagent_type`: `general-purpose`
-   - `description`: `scripts_eval judge: <target>/<question_id>/<n>`
-   - `prompt`: the verbatim contents of `/tmp/judge-<n>.txt`
+   - `description`: `scripts_eval judge: AC <target>/<question_id>/<n>`
+   - `prompt`: the verbatim contents of `/tmp/judge-AC-<n>.txt`
 
-4. Capture the subagent's final-text response and record:
+4. Capture the subagent's final-text response and record. The blind
+   labels for an AC pair come back as `blind_label_for_A` /
+   `blind_label_for_C`:
 
    ```bash
-   A_LABEL=$(jq -r .blind_label_for_A /tmp/judge-<n>.json)
-   C_LABEL=$(jq -r .blind_label_for_C /tmp/judge-<n>.json)
-   # Pipe the subagent's verdict text on stdin:
+   A_LABEL=$(jq -r .blind_label_for_A /tmp/judge-AC-<n>.json)
+   C_LABEL=$(jq -r .blind_label_for_C /tmp/judge-AC-<n>.json)
    uv run --group experiments python -m experiments.scripts_eval.judge \
        record --run $SEER_EVAL_RUN_ID \
+       --pair AC \
        --pair-key <target>/<question_id>/<n> \
        --blind-label-for-a "$A_LABEL" \
        --blind-label-for-c "$C_LABEL" \
+       --verdict-file -
+   ```
+
+5. **Repeat the four steps with `--pair AB`** to judge the directed
+   arm. The job JSON for an AB pair carries `blind_label_for_A` and
+   `blind_label_for_B` (no `_C`); use `--blind-label-for-b` instead of
+   `--blind-label-for-c`:
+
+   ```bash
+   uv run --group experiments python -m experiments.scripts_eval.judge \
+       prepare --run $SEER_EVAL_RUN_ID \
+       --pair AB \
+       --pair-key <target>/<question_id>/<n> \
+       --seed 0 > /tmp/judge-AB-<n>.json
+   jq -j '.prompt_text' /tmp/judge-AB-<n>.json > /tmp/judge-AB-<n>.txt
+   # …dispatch general-purpose subagent with description
+   #   "scripts_eval judge: AB <target>/<question_id>/<n>" and the txt prompt…
+   A_LABEL=$(jq -r .blind_label_for_A /tmp/judge-AB-<n>.json)
+   B_LABEL=$(jq -r .blind_label_for_B /tmp/judge-AB-<n>.json)
+   uv run --group experiments python -m experiments.scripts_eval.judge \
+       record --run $SEER_EVAL_RUN_ID \
+       --pair AB \
+       --pair-key <target>/<question_id>/<n> \
+       --blind-label-for-a "$A_LABEL" \
+       --blind-label-for-b "$B_LABEL" \
        --verdict-file -
    ```
 
@@ -222,6 +350,10 @@ If fewer than 3, stop — arm A must complete first.
    `blind_label` in the error, re-dispatch the judge subagent for that
    trial and re-record. `record` is idempotent on replay — the operator's
    recovery path is "re-dispatch + re-record"; no manual cell editing.
+
+Storage: AC verdicts land under `cell["judges"]["AC"]` (and are mirrored
+to `cell["judge"]` for back-compat with pre-phase-2 readers); AB verdicts
+land under `cell["judges"]["AB"]` only.
 
 ### Wrap-up
 
@@ -238,10 +370,10 @@ git commit -m "$SEER_EVAL_RUN_ID: completed <target>/<question_id> (both arms + 
 ```
 
 Report back:
-- Judge winners on this set (A / C / tie counts).
-- Whether arm C actually used the `repo-map` scripts (look at the
-  `### tools_used` of each arm-C cell — `C_did_not_use_scripts` is a
-  finding, not a bug).
+- A-vs-B winners (A / B / tie) and A-vs-C winners (A / C / tie).
+- Whether arm B and arm C actually used the seer scripts (look at the
+  `### tools_used` of each cell — `B_did_not_use_scripts` and
+  `C_did_not_use_scripts` are findings, not bugs).
 - The next pending set per the run-state table.
 
 ## Reading the run state

@@ -25,13 +25,16 @@ def eval_run_id() -> str | None:
     return val if val else None
 
 
+ARMS = ("A", "B", "C")
+
+
 def eval_arm() -> str | None:
-    """Return SEER_EVAL_ARM (must be 'A' or 'C'), or None if unset."""
+    """Return SEER_EVAL_ARM (must be 'A', 'B', or 'C'), or None if unset."""
     val = os.environ.get("SEER_EVAL_ARM")
     if val is None or val == "":
         return None
-    if val not in ("A", "C"):
-        raise ValueError(f"SEER_EVAL_ARM must be 'A' or 'C' (got {val!r})")
+    if val not in ARMS:
+        raise ValueError(f"SEER_EVAL_ARM must be one of {ARMS} (got {val!r})")
     return val
 
 
