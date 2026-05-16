@@ -10,7 +10,11 @@ description: >
   trigger), git_remote (host/owner/repo parsed from origin), module_summaries
   (per-module first-docstring-line summaries), vendored skills with upstream
   provenance, last 3 changelog entries, CITATION.md table, CLAUDE.md
-  "Project status" body, extras (culture nick, …). Add `--depth deep`
+  "Project status" body, extras (culture nick, …); with default online
+  enrichment, also returns `github_state` (latest release, open issue count,
+  default branch, CI status on default) and `pypi_state` (published version +
+  release date). Pass `--basic` to skip Tier-2 and return Tier-1 mechanical
+  facts only. Add `--depth deep`
   for: README intro, design-related CLAUDE.md sections, last 10 commit
   subjects.
   `scripts/connections.sh <path> --depth N` returns typed import / cite /
