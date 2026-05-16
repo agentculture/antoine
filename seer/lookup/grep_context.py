@@ -20,33 +20,11 @@ from seer.lookup.ast_scope import find_enclosing
 __all__ = ["grep_with_context", "render_grep_markdown"]
 
 
-def grep_with_context(pattern: str, path: str | Path) -> dict[str, Any]:
-    """Search *path* for *pattern* via ``rg --json`` and annotate each match.
-
-    Each match in the returned dict has the shape::
-
-        {"file": str, "line": int, "scope": str | None, "text": str}
-
-    ``scope`` is the qualified name of the enclosing function / method / class
-    for Python files (``None`` for module-level lines and all non-Python files).
-
-    Raises:
-        SeerError(EXIT_USER_ERROR): *path* does not exist.
-        SeerError(EXIT_ENV_ERROR):  ``rg`` is not on PATH, or rg exits with
-                                    code 2+ (real error, not "no matches").
-    """
-    p = Path(path)
-    if not p.exists():
-        raise SeerError(
-            code=EXIT_USER_ERROR,
-            kind="user_error",
-            message=f"path not found: {path}",
-            remediation="pass an existing file or directory.",
-        )
-
+def _run_rg(pattern: str, path: Path) -> "subprocess.CompletedProcess[str]":
+    """Run ``rg --json``; raise :class:`SeerError` on missing binary or exit code 2+."""
     try:
         result = subprocess.run(  # noqa: S603,S607  # nosec B603 B607
-            ["rg", "--json", pattern, str(p)],
+            ["rg", "--json", pattern, str(path)],
             capture_output=True,
             text=True,
             check=False,
@@ -78,11 +56,13 @@ def grep_with_context(pattern: str, path: str | Path) -> dict[str, Any]:
             remediation="check that the pattern is a valid regex and the path is readable.",
         )
 
-    # Parse rg --json output.  Each line is a JSON object; we only care about
-    # type == "match" events.
+    return result
+
+
+def _parse_rg_matches(stdout: str) -> "dict[str, list[dict[str, Any]]]":
+    """Group ``rg --json`` match events by file, preserving emission order."""
     matches_by_file: dict[str, list[dict[str, Any]]] = {}
-    # Keep insertion order so we preserve rg's emission sequence.
-    for raw_line in result.stdout.splitlines():
+    for raw_line in stdout.splitlines():
         raw_line = raw_line.strip()
         if not raw_line:
             continue
@@ -99,28 +79,59 @@ def grep_with_context(pattern: str, path: str | Path) -> dict[str, Any]:
         entry: dict[str, Any] = {
             "file": file_str,
             "line": line_num,
-            "scope": None,  # filled in below
+            "scope": None,  # filled in by _annotate_scopes
             "text": line_text,
         }
         matches_by_file.setdefault(file_str, []).append(entry)
+    return matches_by_file
 
-    # Resolve scopes for Python files.
+
+def _annotate_scopes(file_str: str, entries: "list[dict[str, Any]]") -> None:
+    """Resolve the enclosing Python scope for each entry in *entries* (in-place)."""
+    if not file_str.endswith(".py"):
+        return
+    try:
+        source = Path(file_str).read_text(encoding="utf-8")
+        tree = ast.parse(source)
+    except (SyntaxError, OSError, UnicodeDecodeError):
+        # Best-effort: leave scope=None for all matches in this file.
+        return
+    for entry in entries:
+        scope_obj = find_enclosing(tree, entry["line"])
+        entry["scope"] = scope_obj.name if scope_obj else None
+
+
+def grep_with_context(pattern: str, path: str | Path) -> dict[str, Any]:
+    """Search *path* for *pattern* via ``rg --json`` and annotate each match.
+
+    Each match in the returned dict has the shape::
+
+        {"file": str, "line": int, "scope": str | None, "text": str}
+
+    ``scope`` is the qualified name of the enclosing function / method / class
+    for Python files (``None`` for module-level lines and all non-Python files).
+
+    Raises:
+        SeerError(EXIT_USER_ERROR): *path* does not exist.
+        SeerError(EXIT_ENV_ERROR):  ``rg`` is not on PATH, or rg exits with
+                                    code 2+ (real error, not "no matches").
+    """
+    p = Path(path)
+    if not p.exists():
+        raise SeerError(
+            code=EXIT_USER_ERROR,
+            kind="user_error",
+            message=f"path not found: {path}",
+            remediation="pass an existing file or directory.",
+        )
+
+    result = _run_rg(pattern, p)
+    matches_by_file = _parse_rg_matches(result.stdout)
+
     for file_str, entries in matches_by_file.items():
-        if not file_str.endswith(".py"):
-            continue
-        try:
-            source = Path(file_str).read_text(encoding="utf-8")
-            tree = ast.parse(source)
-        except (SyntaxError, OSError, UnicodeDecodeError):
-            # Best-effort: leave scope=None for all matches in this file.
-            continue
-        for entry in entries:
-            scope_obj = find_enclosing(tree, entry["line"])
-            entry["scope"] = scope_obj.name if scope_obj else None
+        _annotate_scopes(file_str, entries)
 
-    # Flatten back into a single ordered list.
     all_matches = [entry for entries in matches_by_file.values() for entry in entries]
-
     return {"pattern": pattern, "matches": all_matches}
 
 
