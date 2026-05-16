@@ -594,3 +594,63 @@ def test_profile_shallow_github_state_gh_not_found(
     monkeypatch.setattr(subprocess, "run", _selective_raise)
     p = profile_shallow(repo)
     assert p.get("github_state") is None
+
+
+# ---------------------------------------------------------------------------
+# B2 — pypi_state
+# ---------------------------------------------------------------------------
+
+def _make_fake_urlopen(version: str = "0.5.0", upload_time: str = "2026-05-15T12:00:00Z"):
+    """Return a fake urlopen context-manager factory with canned PyPI JSON."""
+    pypi_payload = json.dumps({
+        "info": {"version": version},
+        "releases": {
+            version: [{"upload_time_iso_8601": upload_time}]
+        },
+    }).encode()
+
+    class _FakeResponse:
+        def read(self) -> bytes:
+            return pypi_payload
+
+        def __enter__(self) -> "_FakeResponse":
+            return self
+
+        def __exit__(self, *args: object) -> None:
+            pass
+
+    def _fake_urlopen(url: str, timeout: int = 5) -> _FakeResponse:
+        return _FakeResponse()
+
+    return _fake_urlopen
+
+
+def test_profile_shallow_pypi_state(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """pypi_state returns latest_version and released_at from canned PyPI JSON."""
+    repo = tmp_path / "demo"
+    repo.mkdir()
+    (repo / "pyproject.toml").write_text('[project]\nname = "demo"\nversion = "0.5.0"\n')
+    monkeypatch.setattr(urllib.request, "urlopen", _make_fake_urlopen())
+    p = profile_shallow(repo)
+    ps = p.get("pypi_state")
+    assert ps is not None
+    assert ps["latest_version"] == "0.5.0"
+    assert ps["released_at"] == "2026-05-15T12:00:00Z"
+
+
+def test_profile_shallow_pypi_state_url_error(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """pypi_state is None when urlopen raises URLError."""
+    repo = tmp_path / "demo"
+    repo.mkdir()
+    (repo / "pyproject.toml").write_text('[project]\nname = "demo"\n')
+
+    def _raise(url: str, timeout: int = 5) -> None:
+        raise urllib.error.URLError("network unavailable")
+
+    monkeypatch.setattr(urllib.request, "urlopen", _raise)
+    p = profile_shallow(repo)
+    assert p.get("pypi_state") is None

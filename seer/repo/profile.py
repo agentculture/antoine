@@ -15,8 +15,11 @@ from __future__ import annotations
 import ast
 import json
 import re
+import socket
 import subprocess  # noqa: S404  # nosec B404
 import tomllib
+import urllib.error
+import urllib.request
 from pathlib import Path
 
 import yaml
@@ -110,6 +113,34 @@ def _github_state(git_remote: dict | None) -> dict | None:
     }
 
 
+def _pypi_state(pkg_name: str | None) -> dict | None:
+    """Return published package state from the PyPI JSON API.
+
+    Queries ``https://pypi.org/pypi/<pkg_name>/json`` and extracts the
+    latest version and its upload timestamp.  Any network / parse / structural
+    failure returns ``None`` — callers must treat the field as optional.
+    """
+    if not pkg_name:
+        return None
+    url = f"https://pypi.org/pypi/{pkg_name}/json"
+    try:
+        with urllib.request.urlopen(url, timeout=5) as resp:  # noqa: S310  # nosec B310
+            raw = resp.read()
+    except (urllib.error.URLError, urllib.error.HTTPError, socket.timeout, OSError):
+        return None
+    try:
+        data = json.loads(raw)
+        version = data["info"]["version"]
+        releases = data.get("releases") or {}
+        release_files = releases.get(version) or []
+        released_at: str | None = None
+        if release_files:
+            released_at = release_files[0].get("upload_time_iso_8601")
+        return {"latest_version": version, "released_at": released_at}
+    except (json.JSONDecodeError, KeyError, IndexError):
+        return None
+
+
 def profile_shallow(path: Path) -> dict[str, object]:
     """Return a shallow profile dict for the repo at ``path``.
 
@@ -141,6 +172,7 @@ def profile_shallow(path: Path) -> dict[str, object]:
         raw_pyproject = None
     package_tree = _package_tree(path)
     git_remote = _git_remote(path)
+    pkg_name: str | None = m.get("name") or None  # type: ignore[assignment]
     profile: dict[str, object] = {
         "path": str(path),
         "name": m["name"],
@@ -158,6 +190,7 @@ def profile_shallow(path: Path) -> dict[str, object]:
         "git_remote": git_remote,
         "module_summaries": _module_docs(path, package_tree),
         "github_state": _github_state(git_remote),
+        "pypi_state": _pypi_state(pkg_name),
         "vendored_skills": _list_vendored_skills(path),
         "citations": _read_citations(path),
         "changelog_recent": _read_changelog(path, n=3),
