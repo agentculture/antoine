@@ -399,6 +399,7 @@ def test_render_graph_markdown_includes_mermaid() -> None:
 # B4 — Tier-2 render sections
 # ---------------------------------------------------------------------------
 
+
 def _tier2_fixture() -> dict[str, object]:
     """Fixture with both Tier-2 fields populated."""
     fx = _shallow_fixture()
@@ -459,6 +460,6 @@ def test_render_profile_markdown_tier2_section_order() -> None:
     for s in sections:
         assert s in md, f"missing section: {s}"
         positions.append(md.index(s))
-    assert positions == sorted(positions), (
-        f"sections not in order: {list(zip(sections, positions))}"
-    )
+    assert positions == sorted(
+        positions
+    ), f"sections not in order: {list(zip(sections, positions))}"

@@ -511,19 +511,26 @@ def test_profile_shallow_package_tree_nested(tmp_path: Path) -> None:
 # B1 — github_state
 # ---------------------------------------------------------------------------
 
+
 def _gh_api_side_effect(git_remote_url: str = "git@github.com:agentculture/demo.git") -> object:
     """Return a factory that handles git + gh api calls with canned responses."""
-    _REPO_JSON = json.dumps({
-        "default_branch": "main",
-        "open_issues_count": 4,
-    })
-    _RELEASE_JSON = json.dumps({
-        "tag_name": "v0.5.0",
-        "published_at": "2025-12-01T10:00:00Z",
-    })
-    _RUNS_JSON = json.dumps({
-        "workflow_runs": [{"conclusion": "success"}],
-    })
+    _REPO_JSON = json.dumps(
+        {
+            "default_branch": "main",
+            "open_issues_count": 4,
+        }
+    )
+    _RELEASE_JSON = json.dumps(
+        {
+            "tag_name": "v0.5.0",
+            "published_at": "2025-12-01T10:00:00Z",
+        }
+    )
+    _RUNS_JSON = json.dumps(
+        {
+            "workflow_runs": [{"conclusion": "success"}],
+        }
+    )
 
     class _FakeResult:
         def __init__(self, stdout: str, returncode: int = 0) -> None:
@@ -564,9 +571,7 @@ def _mk_github_repo(root: Path) -> Path:
     return root
 
 
-def test_profile_shallow_github_state(
-    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
-) -> None:
+def test_profile_shallow_github_state(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
     """github_state returns 4-key dict from canned gh api responses."""
     repo = _mk_github_repo(tmp_path / "demo")
     monkeypatch.setattr(subprocess, "run", _gh_api_side_effect())
@@ -600,14 +605,15 @@ def test_profile_shallow_github_state_gh_not_found(
 # B2 — pypi_state
 # ---------------------------------------------------------------------------
 
+
 def _make_fake_urlopen(version: str = "0.5.0", upload_time: str = "2026-05-15T12:00:00Z"):
     """Return a fake urlopen context-manager factory with canned PyPI JSON."""
-    pypi_payload = json.dumps({
-        "info": {"version": version},
-        "releases": {
-            version: [{"upload_time_iso_8601": upload_time}]
-        },
-    }).encode()
+    pypi_payload = json.dumps(
+        {
+            "info": {"version": version},
+            "releases": {version: [{"upload_time_iso_8601": upload_time}]},
+        }
+    ).encode()
 
     class _FakeResponse:
         def read(self) -> bytes:
@@ -625,9 +631,7 @@ def _make_fake_urlopen(version: str = "0.5.0", upload_time: str = "2026-05-15T12
     return _fake_urlopen
 
 
-def test_profile_shallow_pypi_state(
-    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
-) -> None:
+def test_profile_shallow_pypi_state(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
     """pypi_state returns latest_version and released_at from canned PyPI JSON."""
     repo = tmp_path / "demo"
     repo.mkdir()
@@ -660,9 +664,8 @@ def test_profile_shallow_pypi_state_url_error(
 # B3 — --basic flag
 # ---------------------------------------------------------------------------
 
-def test_profile_shallow_basic_skips_tier2(
-    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
-) -> None:
+
+def test_profile_shallow_basic_skips_tier2(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
     """basic=True skips github_state and pypi_state without invoking subprocess gh / urlopen."""
     repo = tmp_path / "demo"
     repo.mkdir()

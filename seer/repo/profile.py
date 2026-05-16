@@ -93,9 +93,7 @@ def _github_state(git_remote: dict | None) -> dict | None:
         except KeyError:
             latest_release = None
 
-    runs_data = _gh_api(
-        f"repos/{slug}/actions/runs?branch={default_branch}&per_page=1"
-    )
+    runs_data = _gh_api(f"repos/{slug}/actions/runs?branch={default_branch}&per_page=1")
     ci_status: str | None = None
     if runs_data is not None:
         try:
