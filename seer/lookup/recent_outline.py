@@ -171,6 +171,21 @@ def recent_with_outline(n: int = 20, path: str | Path = ".") -> dict[str, Any]:
             remediation="pass an existing directory that contains a git repository.",
         )
 
+    # Validate that path is inside a git work tree before running git log.
+    rev_parse = _run_git(
+        ["rev-parse", "--is-inside-work-tree"],
+        repo,
+        allow_nonzero=True,
+    )
+    if rev_parse.returncode != 0 or rev_parse.stdout.strip() != "true":
+        raise SeerError(
+            code=EXIT_USER_ERROR,
+            kind="user_error",
+            message=f"not a git repository: {path}",
+            reason=(rev_parse.stderr.strip()[:200] or "git rev-parse rejected the path."),
+            remediation="pass a path that is inside a git work tree.",
+        )
+
     # Retrieve the last n commits: SHA <TAB> ISO date <TAB> subject
     log_result = _run_git(
         ["log", f"-n{n}", "--pretty=format:%H%x09%cI%x09%s"],
@@ -179,7 +194,18 @@ def recent_with_outline(n: int = 20, path: str | Path = ".") -> dict[str, Any]:
     )
 
     # git log exits 128 in a completely empty repo (no commits at all).
-    if log_result.returncode not in (0, 128):
+    # Only treat exit 128 as "empty repo" when the sentinel phrase is present;
+    # any other fatal error is surfaced as EXIT_ENV_ERROR.
+    if log_result.returncode == 128:
+        stderr_lc = log_result.stderr.lower()
+        if "does not have any commits yet" not in stderr_lc and "fatal" in stderr_lc:
+            raise SeerError(
+                code=EXIT_ENV_ERROR,
+                kind="env_error",
+                message="git log failed",
+                reason=log_result.stderr.strip()[:400],
+            )
+    elif log_result.returncode != 0:
         raise SeerError(
             code=EXIT_ENV_ERROR,
             kind="env_error",
@@ -234,6 +260,24 @@ def recent_with_outline(n: int = 20, path: str | Path = ".") -> dict[str, Any]:
     return {"commits": commits}
 
 
+def _render_change_line(ch: dict[str, Any]) -> str:
+    """Format one changed-file entry as a Markdown bullet line."""
+    file_name = ch.get("file", "")
+    added = ch.get("added") or []
+    removed = ch.get("removed") or []
+    modified = ch.get("modified") or []
+    if not (added or removed or modified):
+        return f"- {file_name}"
+    parts: list[str] = []
+    if added:
+        parts.append(f"+{', '.join(added)}")
+    if removed:
+        parts.append(f"-{', '.join(removed)}")
+    if modified:
+        parts.append(f"~{', '.join(modified)}")
+    return f"- **{file_name}**: {', '.join(parts)}"
+
+
 def render_recent_markdown(data: dict[str, Any]) -> str:
     """Render a :func:`recent_with_outline` result dict as Markdown.
 
@@ -242,39 +286,19 @@ def render_recent_markdown(data: dict[str, Any]) -> str:
     ``-removed``, ``~modified`` inline annotations.
     """
     commits = data.get("commits") or []
-    lines: list[str] = []
-
     if not commits:
-        lines.append("_No commits found._")
-        return "\n".join(lines) + "\n"
+        return "_No commits found._\n"
 
+    lines: list[str] = []
     for commit in commits:
         sha = commit.get("sha", "")
         date = commit.get("date", "")
         subject = commit.get("subject", "")
         changes = commit.get("changes") or []
-
         lines.append(f"### {sha} ({date}) {subject}")
         lines.append("")
-
         for ch in changes:
-            file_name = ch.get("file", "")
-            added = ch.get("added") or []
-            removed = ch.get("removed") or []
-            modified = ch.get("modified") or []
-
-            if added or removed or modified:
-                parts: list[str] = []
-                if added:
-                    parts.append(f"+{', '.join(added)}")
-                if removed:
-                    parts.append(f"-{', '.join(removed)}")
-                if modified:
-                    parts.append(f"~{', '.join(modified)}")
-                lines.append(f"- **{file_name}**: {', '.join(parts)}")
-            else:
-                lines.append(f"- {file_name}")
-
+            lines.append(_render_change_line(ch))
         lines.append("")
 
     return "\n".join(lines)

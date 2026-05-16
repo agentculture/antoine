@@ -230,3 +230,37 @@ def test_render_recent_markdown_empty() -> None:
     data = {"commits": []}
     md = render_recent_markdown(data)
     assert "_No commits found._" in md
+
+
+# ---------------------------------------------------------------------------
+# Qodo #4: git work-tree validation and fatal-error surfacing
+# ---------------------------------------------------------------------------
+
+
+def test_recent_outline_rejects_non_git_path(tmp_path: Path) -> None:
+    """A plain directory (no git init) raises SeerError with EXIT_USER_ERROR."""
+    with pytest.raises(SeerError) as exc_info:
+        recent_with_outline(n=5, path=tmp_path)
+    assert exc_info.value.code == EXIT_USER_ERROR
+
+
+def test_recent_outline_empty_repo_returns_empty_list(tmp_path: Path) -> None:
+    """git init with no commits returns {'commits': []} — unchanged behaviour."""
+    _make_repo(tmp_path)
+    data = recent_with_outline(n=5, path=tmp_path)
+    assert data == {"commits": []}
+
+
+def test_recent_outline_fatal_error_surfaces(tmp_path: Path) -> None:
+    """A corrupt .git (file instead of directory) causes SeerError(EXIT_USER_ERROR).
+
+    git rev-parse --is-inside-work-tree will reject a repo with a .git *file*
+    that points nowhere (unlike a real worktree .git file), so the guard raises
+    EXIT_USER_ERROR before git log is ever called.
+    """
+    # Create .git as a plain file — git treats this as "not a repo".
+    dot_git = tmp_path / ".git"
+    dot_git.write_text("not a real git dir\n", encoding="utf-8")
+    with pytest.raises(SeerError) as exc_info:
+        recent_with_outline(n=5, path=tmp_path)
+    assert exc_info.value.code == EXIT_USER_ERROR
