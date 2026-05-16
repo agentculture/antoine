@@ -5,6 +5,24 @@ All notable changes to this project will be documented in this file.
 Format follows [Keep a Changelog](https://keepachangelog.com/). This project
 adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.6.0] - 2026-05-16
+
+### Added
+
+- `seer grep <pattern> [path]` — ripgrep matches paired with enclosing Python function/class via stdlib AST scope resolver. Requires `rg` on PATH.
+- `seer recent [path] [-n N]` — `git log -n N` paired with per-commit AST symbol diff (added/removed/modified functions and classes per changed Python file).
+- `seer.lookup.ast_scope` — private stdlib-`ast` scope resolver (`Scope`, `list_symbols`, `find_enclosing`) consumed by `grep` and `recent`.
+- `repo-map profile` Tier-1 fields: `build_test` (test cmd + coverage gate + python_requires), `ci_workflows` (file + workflow name), `publish_target` (PyPI/GHCR + trigger summary), `git_remote` (host/owner/repo from `origin`), `module_summaries` (first docstring line per top-level module).
+- `repo-map profile` Tier-2 online fields (default on): `github_state` (latest release, open issues, default branch, CI status on default) via `gh`; `pypi_state` (latest version + released_at) via pypi.org JSON API. Soft-skip on missing `gh` / network errors.
+- `repo-map profile --basic` flag opts out of Tier-2 online enrichment.
+- `code-lookup/scripts/grep.sh` and `code-lookup/scripts/recent.sh` wrapper scripts.
+
+### Changed
+
+- `profile_shallow` signature now accepts a keyword-only `basic: bool = False` argument.
+- `.claude/skills/repo-map/SKILL.md` description enumerates the seven new Tier-1/Tier-2 fields and the `--basic` flag.
+- `.claude/skills/code-lookup/SKILL.md` description enumerates all three verbs (`classify`, `grep`, `recent`) with concrete return shapes.
+
 ## [0.5.0] - 2026-05-16
 
 ### Added
