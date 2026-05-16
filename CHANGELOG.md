@@ -5,6 +5,13 @@ All notable changes to this project will be documented in this file.
 Format follows [Keep a Changelog](https://keepachangelog.com/). This project
 adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.7.0] - 2026-05-16
+
+### Added
+
+- `kata` console-script aliasing `seer = seer.cli:main` (same behavior, new command name introduced ahead of the issue #17 product rename)
+- Dual-publish to PyPI under three names: `seer-cli`, `kata-cli`, `code-lens-cli` — all containing identical wheel content. Lean slice of issue #17.
+
 ## [0.6.0] - 2026-05-16
 
 ### Added

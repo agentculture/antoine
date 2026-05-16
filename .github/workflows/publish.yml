@@ -54,6 +54,11 @@ jobs:
           echo "DEV_VERSION=${DEV_VERSION}" >> "$GITHUB_ENV"
           echo "Publishing ${DEV_VERSION} to TestPyPI"
 
+      # TestPyPI publishes only seer-cli (single distribution) to verify the
+      # build pipeline. The dual-publish loop runs in the prod `publish` job
+      # below — TestPyPI doesn't yet have trusted-publisher configs for
+      # kata-cli / code-lens-cli. Adding TestPyPI parity for those is a
+      # follow-up that requires PyPI-side config first.
       - name: Build and publish to TestPyPI
         run: |
           uv build
@@ -81,7 +86,18 @@ jobs:
 
       - run: uv sync
 
-      - name: Build and publish to PyPI
+      - name: Build and publish each distribution
         run: |
-          uv build
-          uv publish --trusted-publishing always --check-url https://pypi.org/simple/
+          set -euo pipefail
+          for pkg in seer-cli kata-cli code-lens-cli; do
+            echo "::group::Publishing $pkg"
+            # Restore pyproject from git (idempotent across loop iterations).
+            git checkout pyproject.toml
+            sed -i "s/^name = .*/name = \"$pkg\"/" pyproject.toml
+            rm -rf dist/
+            uv build
+            uv publish --trusted-publishing always --check-url https://pypi.org/simple/
+            echo "::endgroup::"
+          done
+          # Final restore so any post-step inspections see the committed value.
+          git checkout pyproject.toml
