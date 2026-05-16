@@ -159,10 +159,11 @@ accumulator file.
 
 ## Arm-B procedure
 
-Phase 1: arm-B captures the **directed** trials so a future
-A-vs-B judge run (phase 2) can assess "do the skills help when used."
-No judge is wired for A-vs-B yet — arm-B cells are written to disk
-and shown in the run-state table only.
+Arm-B captures the **directed** trials so the A-vs-B judge run can
+assess "do the skills help when actually used?". Capture happens in
+its own session (`SEER_EVAL_ARM=B`); the A-vs-B judges then run in
+the arm-C session's Judge phase, alongside the A-vs-C judges
+(`judge prepare --pair AB`).
 
 **For each trial in {1, 2, 3}:**
 
@@ -242,7 +243,10 @@ If fewer than 3, stop — arm A must complete first.
    ```text
 
    Constraints (verbatim):
-   - You may use the `repo-map` skill and its scripts at your discretion.
+   - You may use the `repo-map` skill (and its scripts under
+     `.claude/skills/repo-map/`) and the `code-lookup` skill (and its
+     scripts under `.claude/skills/code-lookup/`) at your discretion.
+     This includes `seer grep` / `seer recent` / `seer classify`.
    - After answering, append two sections and stop:
      ### tools_used
      - <ToolName>: <count>
