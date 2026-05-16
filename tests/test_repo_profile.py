@@ -2,8 +2,13 @@
 
 from __future__ import annotations
 
+import json
 import subprocess
+import urllib.error
+import urllib.request
 from pathlib import Path
+
+import pytest
 
 from seer.repo.profile import profile_deep, profile_shallow
 
@@ -500,3 +505,92 @@ def test_profile_shallow_package_tree_nested(tmp_path: Path) -> None:
     # Excluded dirs stay out.
     assert "tests" not in sub_names
     assert "__pycache__" not in {sp["name"] for sp in root["subpackages"]}
+
+
+# ---------------------------------------------------------------------------
+# B1 — github_state
+# ---------------------------------------------------------------------------
+
+def _gh_api_side_effect(git_remote_url: str = "git@github.com:agentculture/demo.git") -> object:
+    """Return a factory that handles git + gh api calls with canned responses."""
+    _REPO_JSON = json.dumps({
+        "default_branch": "main",
+        "open_issues_count": 4,
+    })
+    _RELEASE_JSON = json.dumps({
+        "tag_name": "v0.5.0",
+        "published_at": "2025-12-01T10:00:00Z",
+    })
+    _RUNS_JSON = json.dumps({
+        "workflow_runs": [{"conclusion": "success"}],
+    })
+
+    class _FakeResult:
+        def __init__(self, stdout: str, returncode: int = 0) -> None:
+            self.stdout = stdout
+            self.returncode = returncode
+            self.stderr = ""
+
+    def _fake_run(args: list, **kwargs: object) -> _FakeResult:
+        # Handle git remote get-url
+        if args and args[0] == "git" and "get-url" in args:
+            return _FakeResult(stdout=git_remote_url)
+        # Sequence gh api calls by endpoint
+        if args and args[0] == "gh" and len(args) >= 3 and args[1] == "api":
+            endpoint = args[2]
+            if "releases/latest" in endpoint:
+                return _FakeResult(stdout=_RELEASE_JSON)
+            if "actions/runs" in endpoint:
+                return _FakeResult(stdout=_RUNS_JSON)
+            # Default: repo metadata
+            return _FakeResult(stdout=_REPO_JSON)
+        return _FakeResult(stdout="", returncode=1)
+
+    return _fake_run
+
+
+def _mk_github_repo(root: Path) -> Path:
+    """Minimal fixture with a git origin so _git_remote returns owner/repo."""
+    root.mkdir()
+    (root / "pyproject.toml").write_text('[project]\nname = "demo"\n')
+    _git = ["git", "-C", str(root)]  # noqa: S607
+    subprocess.run([*_git, "init", "-q"], check=True)  # noqa: S607
+    subprocess.run([*_git, "config", "user.email", "x@y"], check=True)  # noqa: S607
+    subprocess.run([*_git, "config", "user.name", "x"], check=True)  # noqa: S607
+    subprocess.run(
+        [*_git, "remote", "add", "origin", "git@github.com:agentculture/demo.git"],
+        check=True,
+    )  # noqa: S607
+    return root
+
+
+def test_profile_shallow_github_state(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """github_state returns 4-key dict from canned gh api responses."""
+    repo = _mk_github_repo(tmp_path / "demo")
+    monkeypatch.setattr(subprocess, "run", _gh_api_side_effect())
+    p = profile_shallow(repo)
+    gs = p.get("github_state")
+    assert gs is not None
+    assert gs["default_branch"] == "main"
+    assert gs["open_issues"] == 4
+    assert gs["latest_release"] == {"tag": "v0.5.0", "published_at": "2025-12-01T10:00:00Z"}
+    assert gs["ci_status_on_default"] == "success"
+
+
+def test_profile_shallow_github_state_gh_not_found(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """github_state is None when the gh CLI is absent (FileNotFoundError)."""
+    repo = _mk_github_repo(tmp_path / "demo2")
+    original_run = subprocess.run
+
+    def _selective_raise(args: list, **kwargs: object) -> object:
+        if args and args[0] == "gh":
+            raise FileNotFoundError("gh not found")
+        return original_run(args, **kwargs)
+
+    monkeypatch.setattr(subprocess, "run", _selective_raise)
+    p = profile_shallow(repo)
+    assert p.get("github_state") is None

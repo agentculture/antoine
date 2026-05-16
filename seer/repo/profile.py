@@ -13,6 +13,7 @@ Missing optional sources degrade silently to empty fields.
 from __future__ import annotations
 
 import ast
+import json
 import re
 import subprocess  # noqa: S404  # nosec B404
 import tomllib
@@ -25,6 +26,88 @@ from seer.repo.manifest import read_pyproject
 
 _WORKFLOW_NAME_RE = re.compile(r"^name:\s*(.+?)\s*$", re.MULTILINE)
 _REMOTE_RE = re.compile(r"^(?:git@|https?://)([^:/]+)[:/](.+?)(?:\.git)?/?$")
+
+
+_GH_TIMEOUT = 10  # seconds per gh api call
+
+
+def _gh_api(endpoint: str) -> dict | None:
+    """Run ``gh api <endpoint>`` and return parsed JSON, or None on any failure."""
+    try:
+        result = subprocess.run(  # noqa: S603,S607  # nosec B603 B607
+            ["gh", "api", endpoint],
+            capture_output=True,
+            text=True,
+            check=False,
+            timeout=_GH_TIMEOUT,
+        )
+    except FileNotFoundError:
+        return None
+    except subprocess.TimeoutExpired:
+        return None
+    if result.returncode != 0:
+        return None
+    try:
+        return json.loads(result.stdout)
+    except json.JSONDecodeError:
+        return None
+
+
+def _github_state(git_remote: dict | None) -> dict | None:
+    """Return live GitHub repo state via ``gh api``.
+
+    Queries three endpoints: repo metadata (default branch + open issues),
+    latest release, and latest CI run on the default branch.  Any network /
+    parse / missing-key failure causes a ``None`` return — callers must treat
+    the field as optional.
+    """
+    if git_remote is None:
+        return None
+    owner = git_remote.get("owner")
+    repo_name = git_remote.get("repo")
+    if not owner or not repo_name:
+        return None
+
+    slug = f"{owner}/{repo_name}"
+
+    repo_data = _gh_api(f"repos/{slug}")
+    if repo_data is None:
+        return None
+    try:
+        default_branch = repo_data["default_branch"]
+        open_issues = repo_data["open_issues_count"]
+    except KeyError:
+        return None
+
+    release_data = _gh_api(f"repos/{slug}/releases/latest")
+    latest_release: dict | None = None
+    if release_data is not None:
+        try:
+            latest_release = {
+                "tag": release_data["tag_name"],
+                "published_at": release_data["published_at"],
+            }
+        except KeyError:
+            latest_release = None
+
+    runs_data = _gh_api(
+        f"repos/{slug}/actions/runs?branch={default_branch}&per_page=1"
+    )
+    ci_status: str | None = None
+    if runs_data is not None:
+        try:
+            runs = runs_data.get("workflow_runs") or []
+            if runs:
+                ci_status = runs[0].get("conclusion")
+        except (KeyError, IndexError):
+            ci_status = None
+
+    return {
+        "latest_release": latest_release,
+        "open_issues": open_issues,
+        "default_branch": default_branch,
+        "ci_status_on_default": ci_status,
+    }
 
 
 def profile_shallow(path: Path) -> dict[str, object]:
@@ -57,6 +140,7 @@ def profile_shallow(path: Path) -> dict[str, object]:
         manifest = None
         raw_pyproject = None
     package_tree = _package_tree(path)
+    git_remote = _git_remote(path)
     profile: dict[str, object] = {
         "path": str(path),
         "name": m["name"],
@@ -71,8 +155,9 @@ def profile_shallow(path: Path) -> dict[str, object]:
         "build_test": _build_test(raw_pyproject),
         "ci_workflows": _ci_workflows(path),
         "publish_target": _publish_target(path),
-        "git_remote": _git_remote(path),
+        "git_remote": git_remote,
         "module_summaries": _module_docs(path, package_tree),
+        "github_state": _github_state(git_remote),
         "vendored_skills": _list_vendored_skills(path),
         "citations": _read_citations(path),
         "changelog_recent": _read_changelog(path, n=3),
