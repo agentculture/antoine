@@ -5,6 +5,16 @@ All notable changes to this project will be documented in this file.
 Format follows [Keep a Changelog](https://keepachangelog.com/). This project
 adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.7.1] - 2026-05-16
+
+### Changed
+
+- Restored the dual-publish loop in the `test-publish` job after PyPI-side pending-publisher configs were fixed for `kata-cli` and `code-lens-cli` on both TestPyPI and prod PyPI. Future PRs now exercise all three trusted-publisher paths on TestPyPI before merge.
+
+### Fixed
+
+- Retry of v0.7.0 prod publish: `seer-cli==0.7.0` uploaded successfully on the v0.7.0 merge, but `kata-cli` and `code-lens-cli` failed with PyPI `400 Non-user identities cannot create new projects` because the pending-publisher configs pointed at incorrect repository names. v0.7.1 retries with corrected configs.
+
 ## [0.7.0] - 2026-05-16
 
 ### Added
