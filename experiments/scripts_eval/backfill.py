@@ -327,7 +327,7 @@ def main(argv: list[str] | None = None) -> int:
         return 1
 
     total = 0
-    for arm in ("A", "C"):
+    for arm in _io.ARMS:
         arm_dir = rd / f"arm-{arm}"
         if not arm_dir.exists():
             continue

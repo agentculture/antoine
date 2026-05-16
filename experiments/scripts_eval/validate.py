@@ -39,14 +39,14 @@ def _validate_one(cell: dict, expected: list[str]) -> dict:
 
 
 def process_run(run_id: str, *, expected_evidence_by_q_repo: dict) -> list[dict]:
-    """Walk arm-A/ and arm-C/ in this run, fill validation, write back.
+    """Walk every arm dir in this run, fill validation, write back.
 
     expected_evidence_by_q_repo maps {question_id: {repo_id_or_global: [items]}}.
     For workspace cells, repo_id is None; the loader uses '_global' as the key.
     """
     rd = _io.run_dir(run_id)
     out: list[dict] = []
-    for arm in ("A", "C"):
+    for arm in _io.ARMS:
         for fp in sorted((rd / f"arm-{arm}").glob("*.json")):
             cell = _io.read_json(fp)
             qid = cell["question_id"]

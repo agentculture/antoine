@@ -2,7 +2,7 @@ corpus_version: 1
 
 config:
   trials_per_cell: 3
-  arms: [A, C]
+  arms: [A, B, C]
   workspace_root: /home/spark/git
 
 targets:

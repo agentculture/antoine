@@ -1,15 +1,23 @@
-"""judge.py — pairwise blind judge over arm-A vs arm-C cells.
+"""judge.py — pairwise blind judge over any two arms.
 
 The LLM call itself is performed by an operator-dispatched Claude Code
 subagent. This module owns the deterministic plumbing:
 
-* ``prepare`` — pair cells, seed-blind their labels, strip the
-  ``### tools_used`` / ``### evidence`` tails (those tails de-blind the
-  comparison because arm C's tail can name ``scripts/profile.sh``),
-  and emit a job dict per pair with the assembled subagent prompt.
+* ``prepare`` — pair cells from two arms, seed-blind their labels,
+  strip the ``### tools_used`` / ``### evidence`` tails (those tails
+  de-blind the comparison because arm C's tail can name
+  ``scripts/profile.sh``), and emit a job dict per pair with the
+  assembled subagent prompt.
 * ``record`` — parse the subagent's verdict JSON, validate the
   vocabulary, de-blind the winner, and write the locked-surface
-  ``judge`` block into both paired cell JSONs.
+  judge block into both paired cell JSONs.
+
+Pairs: ``--pair AC`` (default), ``--pair AB``, or ``--pair BC``. The
+two letters name the two arms; the first letter's cells land at
+"X" in the prompt unless blinding swaps them. Verdict storage in
+each cell lives under ``cell["judges"][pair]``; for the AC pair the
+legacy ``cell["judge"]`` field is also written for back-compat with
+summarize.py readers that haven't migrated.
 
 The operator-Claude bridges the two: read a prepared job, dispatch a
 ``general-purpose`` subagent with a description prefixed
@@ -101,11 +109,25 @@ def _strip_evidence_tail(text: str) -> str:
 
 
 def _assign_blind_labels(rng: random.Random) -> tuple[str, str]:
-    """Return ``(label_for_A, label_for_C)`` — randomly one of
-    ``('answer_X', 'answer_Y')`` or vice versa, drawn from *rng*."""
-    a_label = rng.choice(["answer_X", "answer_Y"])
-    c_label = "answer_Y" if a_label == "answer_X" else "answer_X"
-    return a_label, c_label
+    """Return ``(label_for_first_arm, label_for_second_arm)`` — randomly
+    one of ``('answer_X', 'answer_Y')`` or vice versa, drawn from *rng*.
+
+    The arm letters in the pair are arbitrary at this layer; callers
+    just unpack into ``(first_label, second_label)``.
+    """
+    first = rng.choice(["answer_X", "answer_Y"])
+    second = "answer_Y" if first == "answer_X" else "answer_X"
+    return first, second
+
+
+VALID_PAIRS = ("AC", "AB", "BC")
+
+
+def _parse_pair(pair: str) -> tuple[str, str]:
+    """Return ``(arm_x, arm_y)`` for a pair string like ``"AC"``."""
+    if pair not in VALID_PAIRS:
+        raise ValueError(f"pair must be one of {VALID_PAIRS} (got {pair!r})")
+    return pair[0], pair[1]
 
 
 def _build_prompt(*, rubric: str, question: str, answer_x: str, answer_y: str) -> str:
@@ -212,7 +234,7 @@ def _validate_blind_labels(blind_label_for_a: str, blind_label_for_c: str) -> No
 
     Both labels must be in ``{answer_X, answer_Y}`` and they must be
     distinct — otherwise de-blinding is ambiguous and a silent wrong
-    winner would land in the locked-surface ``judge`` block.
+    winner would land in the locked-surface judge block.
     """
     if blind_label_for_a not in _BLIND_LABEL_VOCAB:
         raise ValueError(
@@ -228,6 +250,29 @@ def _validate_blind_labels(blind_label_for_a: str, blind_label_for_c: str) -> No
         raise ValueError(
             f"blind_label_for_a and blind_label_for_c must be distinct "
             f"(both got {blind_label_for_a!r})"
+        )
+
+
+def _validate_pair_labels(label_x: str, label_y: str, *, arm_x: str, arm_y: str) -> None:
+    """Pair-aware blind-label validator (replaces the AC-only one for new code).
+
+    Same checks, just with the arm letters carried through so error
+    messages name the actual arms in the pair.
+    """
+    if label_x not in _BLIND_LABEL_VOCAB:
+        raise ValueError(
+            f"blind_label_for_{arm_x} must be one of {sorted(_BLIND_LABEL_VOCAB)} "
+            f"(got {label_x!r})"
+        )
+    if label_y not in _BLIND_LABEL_VOCAB:
+        raise ValueError(
+            f"blind_label_for_{arm_y} must be one of {sorted(_BLIND_LABEL_VOCAB)} "
+            f"(got {label_y!r})"
+        )
+    if label_x == label_y:
+        raise ValueError(
+            f"blind_label_for_{arm_x} and blind_label_for_{arm_y} must be "
+            f"distinct (both got {label_x!r})"
         )
 
 
@@ -256,9 +301,97 @@ def _de_blind(
     )
 
 
+def _de_blind_pair(
+    winner_letter: str,
+    *,
+    label_x: str,
+    label_y: str,
+    arm_x: str,
+    arm_y: str,
+) -> str:
+    """Generalised de-blind: map X/Y/tie back to the actual arm letter."""
+    if winner_letter == "tie":
+        return "tie"
+    target = f"answer_{winner_letter}"
+    if label_x == target:
+        return arm_x
+    if label_y == target:
+        return arm_y
+    raise ValueError(
+        f"de-blind failed: winner={winner_letter!r} " f"{arm_x}={label_x!r} {arm_y}={label_y!r}"
+    )
+
+
 # ---------------------------------------------------------------------------
 # Public API: record side
 # ---------------------------------------------------------------------------
+
+
+def record_verdict_pair(
+    run_id: str,
+    *,
+    pair: str,
+    pair_key: str,
+    verdict_text: str,
+    label_x: str,
+    label_y: str,
+    rubric_version: str,
+    judge_model: str,
+) -> tuple[Path, Path]:
+    """Pair-aware verdict recorder.
+
+    *pair* is ``"AC"`` / ``"AB"`` / ``"BC"``. *label_x* and *label_y*
+    are the blind labels for the first and second arm of the pair.
+    Writes the locked-surface judge block to
+    ``cell["judges"][pair]`` on both cells, and — for the AC pair only
+    — also mirrors it to the legacy ``cell["judge"]`` field so readers
+    that haven't migrated continue to work.
+
+    Returns ``(path_x, path_y)``. Idempotent.
+    """
+    arm_x, arm_y = _parse_pair(pair)
+    _validate_pair_labels(label_x, label_y, arm_x=arm_x, arm_y=arm_y)
+    repo_id, qid, trial = _parse_pair_key(pair_key)
+    rd = _io.run_dir(run_id)
+    x_by = _load_arm(rd, arm_x)
+    y_by = _load_arm(rd, arm_y)
+    target = (repo_id, qid, trial)
+    if target not in x_by or target not in y_by:
+        raise ValueError(
+            f"no cells found for pair {pair_key!r} in run {run_id!r} "
+            f"(arm-{arm_x}: {target in x_by}, arm-{arm_y}: {target in y_by})"
+        )
+    path_x, cell_x = x_by[target]
+    path_y, cell_y = y_by[target]
+
+    verdict = _validate_verdict(_extract_json(verdict_text))
+    winner = _de_blind_pair(
+        verdict["winner"],
+        label_x=label_x,
+        label_y=label_y,
+        arm_x=arm_x,
+        arm_y=arm_y,
+    )
+    block = {
+        "pair": pair,
+        "judge_model": judge_model,
+        "rubric_version": rubric_version,
+        "comparison": {
+            "winner": winner,
+            "margin": verdict["margin"],
+            "reasoning": verdict.get("reasoning", ""),
+            f"blind_label_for_{arm_x}": label_x,
+            f"blind_label_for_{arm_y}": label_y,
+        },
+    }
+    for cell in (cell_x, cell_y):
+        judges = cell.setdefault("judges", {})
+        judges[pair] = block
+        if pair == "AC":
+            cell["judge"] = block  # legacy mirror for unmigrated readers
+    _io.write_json(path_x, cell_x)
+    _io.write_json(path_y, cell_y)
+    return path_x, path_y
 
 
 def record_verdict(
@@ -271,49 +404,81 @@ def record_verdict(
     rubric_version: str,
     judge_model: str,
 ) -> tuple[Path, Path]:
-    """Parse, validate, de-blind, and write the judge block to both cells.
+    """Back-compat AC-pair wrapper around ``record_verdict_pair``.
 
-    Returns ``(a_path, c_path)``. Idempotent: replaying overwrites the
-    block cleanly. Raises ``ValueError`` on a malformed verdict text or
-    when no cells exist for *pair_key*.
+    Preserved so existing tests and any external callers keep working
+    with their AC-named arguments.
     """
-    _validate_blind_labels(blind_label_for_a, blind_label_for_c)
-    repo_id, qid, trial = _parse_pair_key(pair_key)
-    rd = _io.run_dir(run_id)
-    a_by = _load_arm(rd, "A")
-    c_by = _load_arm(rd, "C")
-    target = (repo_id, qid, trial)
-    if target not in a_by or target not in c_by:
-        raise ValueError(
-            f"no cells found for pair {pair_key!r} in run {run_id!r} "
-            f"(arm-A: {target in a_by}, arm-C: {target in c_by})"
-        )
-    a_path, a_cell = a_by[target]
-    c_path, c_cell = c_by[target]
-
-    verdict = _validate_verdict(_extract_json(verdict_text))
-    winner = _de_blind(verdict["winner"], blind_label_for_a, blind_label_for_c)
-    block = {
-        "judge_model": judge_model,
-        "rubric_version": rubric_version,
-        "comparison": {
-            "winner": winner,
-            "margin": verdict["margin"],
-            "reasoning": verdict.get("reasoning", ""),
-            "blind_label_for_A": blind_label_for_a,
-            "blind_label_for_C": blind_label_for_c,
-        },
-    }
-    a_cell["judge"] = block
-    c_cell["judge"] = block
-    _io.write_json(a_path, a_cell)
-    _io.write_json(c_path, c_cell)
-    return a_path, c_path
+    return record_verdict_pair(
+        run_id,
+        pair="AC",
+        pair_key=pair_key,
+        verdict_text=verdict_text,
+        label_x=blind_label_for_a,
+        label_y=blind_label_for_c,
+        rubric_version=rubric_version,
+        judge_model=judge_model,
+    )
 
 
 # ---------------------------------------------------------------------------
 # Public API: prepare side
 # ---------------------------------------------------------------------------
+
+
+def iter_jobs_pair(
+    run_id: str,
+    *,
+    pair: str,
+    rubric_text: str,
+    rubric_version: str,
+    judge_model: str,
+    rng: random.Random,
+) -> Iterator[dict]:
+    """Yield one job dict per paired (arm_x, arm_y) cell in stable order.
+
+    The RNG is consumed in pair-key order across the full sweep, so
+    calling ``iter_jobs_pair`` and filtering by pair_key downstream
+    produces the same blinding as a full run.
+
+    The emitted dict carries ``blind_label_for_<arm_x>`` and
+    ``blind_label_for_<arm_y>`` keys named after the actual arm letters
+    in *pair*, plus a ``pair`` field echoing the pair label.
+    """
+    arm_x, arm_y = _parse_pair(pair)
+    rd = _io.run_dir(run_id)
+    x_by = _load_arm(rd, arm_x)
+    y_by = _load_arm(rd, arm_y)
+    pairs = sorted(set(x_by) & set(y_by))
+    for key in pairs:
+        repo_id, question_id, trial = key
+        _, cell_x = x_by[key]
+        _, cell_y = y_by[key]
+        label_x, label_y = _assign_blind_labels(rng)
+        answer_arm_x = _strip_evidence_tail(cell_x.get("answer_text", ""))
+        answer_arm_y = _strip_evidence_tail(cell_y.get("answer_text", ""))
+        if label_x == "answer_X":
+            answer_x, answer_y = answer_arm_x, answer_arm_y
+        else:
+            answer_x, answer_y = answer_arm_y, answer_arm_x
+        prompt_text = _build_prompt(
+            rubric=rubric_text,
+            question=cell_x.get("question_text", ""),
+            answer_x=answer_x,
+            answer_y=answer_y,
+        )
+        yield {
+            "pair": pair,
+            "pair_key": _format_pair_key(repo_id, question_id, trial),
+            "repo_id": repo_id,
+            "question_id": question_id,
+            "trial": trial,
+            f"blind_label_for_{arm_x}": label_x,
+            f"blind_label_for_{arm_y}": label_y,
+            "prompt_text": prompt_text,
+            "rubric_version": rubric_version,
+            "judge_model": judge_model,
+        }
 
 
 def iter_jobs(
@@ -324,44 +489,15 @@ def iter_jobs(
     judge_model: str,
     rng: random.Random,
 ) -> Iterator[dict]:
-    """Yield one job dict per paired (A, C) cell, in stable pair-key order.
-
-    The RNG is consumed in pair-key order across the full sweep, so
-    calling ``iter_jobs`` and filtering by pair_key downstream produces
-    the same blinding as a full run.
-    """
-    rd = _io.run_dir(run_id)
-    a_by = _load_arm(rd, "A")
-    c_by = _load_arm(rd, "C")
-    pairs = sorted(set(a_by) & set(c_by))
-    for key in pairs:
-        repo_id, question_id, trial = key
-        _, a_cell = a_by[key]
-        _, c_cell = c_by[key]
-        a_label, c_label = _assign_blind_labels(rng)
-        a_answer = _strip_evidence_tail(a_cell.get("answer_text", ""))
-        c_answer = _strip_evidence_tail(c_cell.get("answer_text", ""))
-        if a_label == "answer_X":
-            answer_x, answer_y = a_answer, c_answer
-        else:
-            answer_x, answer_y = c_answer, a_answer
-        prompt_text = _build_prompt(
-            rubric=rubric_text,
-            question=a_cell.get("question_text", ""),
-            answer_x=answer_x,
-            answer_y=answer_y,
-        )
-        yield {
-            "pair_key": _format_pair_key(repo_id, question_id, trial),
-            "repo_id": repo_id,
-            "question_id": question_id,
-            "trial": trial,
-            "blind_label_for_A": a_label,
-            "blind_label_for_C": c_label,
-            "prompt_text": prompt_text,
-            "rubric_version": rubric_version,
-            "judge_model": judge_model,
-        }
+    """Back-compat AC-pair wrapper around ``iter_jobs_pair``."""
+    yield from iter_jobs_pair(
+        run_id,
+        pair="AC",
+        rubric_text=rubric_text,
+        rubric_version=rubric_version,
+        judge_model=judge_model,
+        rng=rng,
+    )
 
 
 # ---------------------------------------------------------------------------
@@ -373,8 +509,9 @@ def _cmd_prepare(args: argparse.Namespace) -> int:
     rubric_text = Path(args.rubric).read_text(encoding="utf-8")
     rng = random.Random(args.seed)  # noqa: S311 — non-cryptographic blinding
     jobs = list(
-        iter_jobs(
+        iter_jobs_pair(
             args.run,
+            pair=args.pair,
             rubric_text=rubric_text,
             rubric_version=args.rubric_version,
             judge_model=args.judge_model,
@@ -398,6 +535,13 @@ def _cmd_prepare(args: argparse.Namespace) -> int:
     return 0
 
 
+_LABEL_FLAGS = {
+    "A": "blind_label_for_a",
+    "B": "blind_label_for_b",
+    "C": "blind_label_for_c",
+}
+
+
 def _cmd_record(args: argparse.Namespace) -> int:
     if args.verdict_file == "-":
         verdict_text = sys.stdin.read()
@@ -408,20 +552,32 @@ def _cmd_record(args: argparse.Namespace) -> int:
     else:
         print("record: provide --verdict-text or --verdict-file", file=sys.stderr)
         return 2
+    arm_x, arm_y = _parse_pair(args.pair)
+    label_x = getattr(args, _LABEL_FLAGS[arm_x])
+    label_y = getattr(args, _LABEL_FLAGS[arm_y])
+    if label_x is None or label_y is None:
+        print(
+            f"record: --pair {args.pair} requires "
+            f"--blind-label-for-{arm_x.lower()} and "
+            f"--blind-label-for-{arm_y.lower()}",
+            file=sys.stderr,
+        )
+        return 2
     try:
-        a_path, c_path = record_verdict(
+        path_x, path_y = record_verdict_pair(
             args.run,
+            pair=args.pair,
             pair_key=args.pair_key,
             verdict_text=verdict_text,
-            blind_label_for_a=args.blind_label_for_a,
-            blind_label_for_c=args.blind_label_for_c,
+            label_x=label_x,
+            label_y=label_y,
             rubric_version=args.rubric_version,
             judge_model=args.judge_model,
         )
     except ValueError as exc:
         print(f"record: {exc}", file=sys.stderr)
         return 1
-    print(f"{a_path}\n{c_path}")
+    print(f"{path_x}\n{path_y}")
     return 0
 
 
@@ -431,6 +587,12 @@ def _build_parser() -> argparse.ArgumentParser:
 
     pp = sub.add_parser("prepare", help="emit subagent job(s) for paired cells")
     pp.add_argument("--run", required=True)
+    pp.add_argument(
+        "--pair",
+        default="AC",
+        choices=list(VALID_PAIRS),
+        help="arm pair to judge; default AC for back-compat",
+    )
     pp.add_argument(
         "--rubric",
         default="experiments/scripts_eval/judge_rubric.md",
@@ -453,6 +615,12 @@ def _build_parser() -> argparse.ArgumentParser:
 
     rp = sub.add_parser("record", help="write a subagent verdict back to both cells")
     rp.add_argument("--run", required=True)
+    rp.add_argument(
+        "--pair",
+        default="AC",
+        choices=list(VALID_PAIRS),
+        help="arm pair to judge; default AC for back-compat",
+    )
     rp.add_argument("--pair-key", required=True)
     g = rp.add_mutually_exclusive_group()
     g.add_argument("--verdict-text", default=None, help="inline verdict JSON text")
@@ -461,8 +629,11 @@ def _build_parser() -> argparse.ArgumentParser:
         default=None,
         help="path to a file holding the verdict text, or '-' for stdin",
     )
-    rp.add_argument("--blind-label-for-a", required=True, choices=["answer_X", "answer_Y"])
-    rp.add_argument("--blind-label-for-c", required=True, choices=["answer_X", "answer_Y"])
+    # All three labels are optional at argparse level; the command-handler
+    # checks that the two relevant for --pair are present and valid.
+    rp.add_argument("--blind-label-for-a", default=None, choices=["answer_X", "answer_Y"])
+    rp.add_argument("--blind-label-for-b", default=None, choices=["answer_X", "answer_Y"])
+    rp.add_argument("--blind-label-for-c", default=None, choices=["answer_X", "answer_Y"])
     rp.add_argument("--rubric-version", default="v1")
     rp.add_argument("--judge-model", default="subagent:claude-opus-4-7")
     rp.set_defaults(func=_cmd_record)
