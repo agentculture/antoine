@@ -15,10 +15,8 @@ from __future__ import annotations
 import ast
 import json
 import re
-import socket
 import subprocess  # noqa: S404  # nosec B404
 import tomllib
-import urllib.error
 import urllib.request
 from pathlib import Path
 
@@ -124,7 +122,7 @@ def _pypi_state(pkg_name: str | None) -> dict | None:
     try:
         with urllib.request.urlopen(url, timeout=5) as resp:  # noqa: S310  # nosec B310
             raw = resp.read()
-    except (urllib.error.URLError, urllib.error.HTTPError, socket.timeout, OSError):
+    except OSError:
         return None
     try:
         data = json.loads(raw)
@@ -150,14 +148,14 @@ def profile_shallow(path: Path, *, basic: bool = False) -> dict[str, object]:
     ``pypi_state``) are skipped entirely — no subprocess or network calls are
     made for those fields.
     """
-    has_pyproject = (path / "pyproject.toml").exists()
+    has_pyproject = (path / _PYPROJECT_TOML).exists()
     if has_pyproject:
         m = read_pyproject(path)
         language = "python"
-        manifest: str | None = "pyproject.toml"
+        manifest: str | None = _PYPROJECT_TOML
         try:
             raw_pyproject: dict | None = tomllib.loads(
-                (path / "pyproject.toml").read_text(encoding="utf-8")
+                (path / _PYPROJECT_TOML).read_text(encoding="utf-8")
             )
         except (tomllib.TOMLDecodeError, OSError):
             raw_pyproject = None
@@ -207,6 +205,7 @@ def profile_shallow(path: Path, *, basic: bool = False) -> dict[str, object]:
 
 _PKG_EXCLUDE = {"tests", "docs", "scripts", "__pycache__"}
 _INIT_PY = "__init__.py"
+_PYPROJECT_TOML = "pyproject.toml"
 
 
 def _is_candidate_pkg_dir(child: Path) -> bool:
@@ -488,41 +487,38 @@ def _ci_workflows(path: Path) -> list[dict[str, str]]:
     return out
 
 
+# (needle, label) pairs tried in priority order for both block and inline forms.
+_TRIGGER_NEEDLES = (
+    ("tags:", "push: tags"),
+    ("release", "release"),
+    ("workflow_dispatch", "workflow_dispatch"),
+    ("schedule", "schedule"),
+    ("pull_request", "pull_request"),
+    ("branches:", "push: branches"),
+)
+
+
+def _classify_trigger(haystack: str) -> str | None:
+    """Return the first matching trigger label for *haystack*, or ``None``."""
+    for needle, label in _TRIGGER_NEEDLES:
+        if needle in haystack:
+            return label
+    return None
+
+
 def _summarize_on_block(text: str) -> str:
     """Coarse classifier for the ``on:`` block in a workflow file."""
-    # Find lines after "on:" until the next top-level key
-    on_block_re = re.compile(r"^on:\s*\n((?:[ \t]+.*\n?)*)", re.MULTILINE)
-    m = on_block_re.search(text)
-    if not m:
-        # on: might be inline like "on: [push]" or just a single word
-        inline_re = re.compile(r"^on:\s*(.+)$", re.MULTILINE)
-        im = inline_re.search(text)
-        if im:
-            val = im.group(1).strip().lower()
-            if "release" in val:
-                return "release"
-            if "workflow_dispatch" in val:
-                return "workflow_dispatch"
-            if "schedule" in val:
-                return "schedule"
-            if "pull_request" in val:
-                return "pull_request"
-            if "push" in val:
-                return "push: branches"
-        return "unknown"
-    block = m.group(0)
-    if "tags:" in block:
-        return "push: tags"
-    if "release" in block:
-        return "release"
-    if "workflow_dispatch" in block:
-        return "workflow_dispatch"
-    if "schedule" in block:
-        return "schedule"
-    if "pull_request" in block:
-        return "pull_request"
-    if "branches:" in block:
-        return "push: branches"
+    block_re = re.compile(r"^on:\s*\n((?:[ \t]+.*\n?)*)", re.MULTILINE)
+    m = block_re.search(text)
+    if m:
+        return _classify_trigger(m.group(0)) or "unknown"
+    inline_re = re.compile(r"^on:\s*(.+)$", re.MULTILINE)
+    im = inline_re.search(text)
+    if im:
+        val = im.group(1).strip().lower()
+        if "push" in val and not _classify_trigger(val):
+            return "push: branches"
+        return _classify_trigger(val) or "unknown"
     return "unknown"
 
 
