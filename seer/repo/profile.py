@@ -141,12 +141,16 @@ def _pypi_state(pkg_name: str | None) -> dict | None:
         return None
 
 
-def profile_shallow(path: Path) -> dict[str, object]:
+def profile_shallow(path: Path, *, basic: bool = False) -> dict[str, object]:
     """Return a shallow profile dict for the repo at ``path``.
 
     Reads from multiple optional sources (pyproject.toml, CLAUDE.md,
     CHANGELOG.md, CITATION.md, .claude/skills/, culture.yaml) and degrades
     silently when any source is missing.
+
+    When ``basic=True`` the Tier-2 online fields (``github_state``,
+    ``pypi_state``) are skipped entirely — no subprocess or network calls are
+    made for those fields.
     """
     has_pyproject = (path / "pyproject.toml").exists()
     if has_pyproject:
@@ -189,8 +193,8 @@ def profile_shallow(path: Path) -> dict[str, object]:
         "publish_target": _publish_target(path),
         "git_remote": git_remote,
         "module_summaries": _module_docs(path, package_tree),
-        "github_state": _github_state(git_remote),
-        "pypi_state": _pypi_state(pkg_name),
+        "github_state": None if basic else _github_state(git_remote),
+        "pypi_state": None if basic else _pypi_state(pkg_name),
         "vendored_skills": _list_vendored_skills(path),
         "citations": _read_citations(path),
         "changelog_recent": _read_changelog(path, n=3),
@@ -625,9 +629,9 @@ _DEEP_HEADINGS = ("## Project Status", "## Architecture")
 _DEEP_KEYWORDS = ("invariant", "rule", "contract")
 
 
-def profile_deep(path: Path) -> dict[str, object]:
+def profile_deep(path: Path, *, basic: bool = False) -> dict[str, object]:
     """Shallow profile + readme intro, design-section text, recent commits."""
-    p = profile_shallow(path)
+    p = profile_shallow(path, basic=basic)
     p["readme_intro"] = _read_readme_intro(path)
     p["claude_md_sections"] = _read_claude_md_design_sections(path)
     p["commits_recent"] = _read_recent_commits(path, n=10)

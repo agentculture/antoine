@@ -46,7 +46,11 @@ def _profile(args: argparse.Namespace, _cfg: RepoMapConfig) -> int:
     path = Path(args.path)
     if not path.is_dir():
         raise path_not_a_directory(path)
-    data = profile_deep(path) if args.depth == "deep" else profile_shallow(path)
+    basic = bool(getattr(args, "basic", False))
+    if args.depth == "deep":
+        data = profile_deep(path, basic=basic)
+    else:
+        data = profile_shallow(path, basic=basic)
     if args.json:
         emit_result({"ok": True, "data": data}, json_mode=True)
     else:
@@ -108,6 +112,14 @@ def _build_parser() -> argparse.ArgumentParser:
     pp = sub.add_parser("profile", help="Profile one repo.")
     pp.add_argument("path")
     pp.add_argument("--depth", choices=["shallow", "deep"], default="shallow")
+    pp.add_argument(
+        "--basic",
+        action="store_true",
+        help=(
+            "Skip Tier-2 online fields (github_state, pypi_state) — "
+            "Tier-1 mechanical fields only."
+        ),
+    )
     pp.add_argument("--json", action="store_true")
     pp.set_defaults(func=_profile)
 

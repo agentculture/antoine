@@ -654,3 +654,35 @@ def test_profile_shallow_pypi_state_url_error(
     monkeypatch.setattr(urllib.request, "urlopen", _raise)
     p = profile_shallow(repo)
     assert p.get("pypi_state") is None
+
+
+# ---------------------------------------------------------------------------
+# B3 — --basic flag
+# ---------------------------------------------------------------------------
+
+def test_profile_shallow_basic_skips_tier2(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """basic=True skips github_state and pypi_state without invoking subprocess gh / urlopen."""
+    repo = tmp_path / "demo"
+    repo.mkdir()
+    (repo / "pyproject.toml").write_text('[project]\nname = "demo"\n')
+
+    def _should_not_be_called_for_gh(*args: object, **kwargs: object) -> object:
+        # Allow git calls (for _git_remote), but not gh
+        if args and isinstance(args[0], list) and args[0] and args[0][0] == "gh":
+            raise AssertionError("subprocess.run called with gh in basic mode")
+        return subprocess.CompletedProcess(
+            args=args[0] if args else [], returncode=1, stdout="", stderr=""
+        )
+
+    monkeypatch.setattr(subprocess, "run", _should_not_be_called_for_gh)
+
+    def _should_not_be_called_for_urlopen(*args: object, **kwargs: object) -> None:
+        raise AssertionError("urlopen called in basic mode")
+
+    monkeypatch.setattr(urllib.request, "urlopen", _should_not_be_called_for_urlopen)
+
+    p = profile_shallow(repo, basic=True)
+    assert p.get("github_state") is None
+    assert p.get("pypi_state") is None

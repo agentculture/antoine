@@ -142,3 +142,19 @@ def test_connections_uses_config_default_depth_when_flag_omitted(tmp_path: Path)
     assert {"alpha", "beta", "gamma"} <= node_ids, (
         "depth=2 from config should have reached gamma; got " f"{node_ids}"
     )
+
+
+def test_profile_basic_flag_skips_tier2(tmp_path: Path) -> None:
+    """``profile --basic --json`` returns JSON with github_state and pypi_state as None.
+
+    The test verifies that the --basic flag is wired through the argparse layer
+    into profile_shallow.  No network calls are made because no git remote or
+    PyPI name resolves to a real endpoint in the tmp fixture repo.
+    """
+    repo = _mkrepo(tmp_path, "demo")
+    result = _run("profile", str(repo), "--basic", "--json")
+    assert result.returncode == 0, result.stderr
+    payload = json.loads(result.stdout)
+    data = payload["data"]
+    assert data.get("github_state") is None
+    assert data.get("pypi_state") is None
