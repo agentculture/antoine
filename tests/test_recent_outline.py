@@ -7,7 +7,7 @@ from pathlib import Path
 
 import pytest
 
-from seer.cli._errors import EXIT_ENV_ERROR, EXIT_USER_ERROR, SeerError
+from seer.cli._errors import EXIT_USER_ERROR, SeerError
 from seer.lookup.recent_outline import recent_with_outline, render_recent_markdown
 
 # ---------------------------------------------------------------------------
@@ -17,7 +17,7 @@ from seer.lookup.recent_outline import recent_with_outline, render_recent_markdo
 
 def _git(tmp_path: Path, *args: str) -> None:
     """Run a git command in tmp_path, raise on failure."""
-    subprocess.run(
+    subprocess.run(  # noqa: S607
         ["git", "-C", str(tmp_path), *args],
         check=True,
         capture_output=True,
@@ -49,9 +49,7 @@ def test_recent_outline_basic(tmp_path: Path) -> None:
     # First commit: lib.py with function foo (3 lines)
     lib = tmp_path / "lib.py"
     lib.write_text(
-        "def foo():\n"
-        "    # body\n"
-        "    return 1\n",
+        "def foo():\n" "    # body\n" "    return 1\n",
         encoding="utf-8",
     )
     _commit(tmp_path, "first: add foo")

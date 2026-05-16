@@ -20,7 +20,11 @@ from seer.lookup.ast_scope import list_symbols
 __all__ = ["recent_with_outline", "render_recent_markdown"]
 
 
-def _run_git(args: list[str], path: Path, allow_nonzero: bool = False) -> subprocess.CompletedProcess:  # type: ignore[type-arg]
+def _run_git(  # type: ignore[type-arg]
+    args: list[str],
+    path: Path,
+    allow_nonzero: bool = False,
+) -> subprocess.CompletedProcess:
     """Run a git command in *path* and return the CompletedProcess.
 
     Raises:
@@ -214,14 +218,9 @@ def recent_with_outline(n: int = 20, path: str | Path = ".") -> dict[str, Any]:
             diff_args = ["diff-tree", "--no-commit-id", "--name-only", "-r", full_sha]
 
         files_result = _run_git(diff_args, repo, allow_nonzero=True)
-        changed_files = [
-            f.strip() for f in files_result.stdout.splitlines() if f.strip()
-        ]
+        changed_files = [f.strip() for f in files_result.stdout.splitlines() if f.strip()]
 
-        changes = [
-            _file_diff(full_sha, f, repo, is_initial=is_initial)
-            for f in changed_files
-        ]
+        changes = [_file_diff(full_sha, f, repo, is_initial=is_initial) for f in changed_files]
 
         commits.append(
             {

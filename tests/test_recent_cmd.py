@@ -16,7 +16,7 @@ from seer.cli import main
 
 
 def _git(tmp_path: Path, *args: str) -> None:
-    subprocess.run(
+    subprocess.run(  # noqa: S607
         ["git", "-C", str(tmp_path), *args],
         check=True,
         capture_output=True,
