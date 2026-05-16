@@ -102,7 +102,11 @@ existence.
 
 When delegating a task to a subagent (Explore, general-purpose, Plan, etc.),
 check whether the task shape matches one of the rows below; if so, include
-the matching directive **verbatim** in the subagent's prompt:
+the matching directive **verbatim** in the subagent's prompt. **These shapes
+apply to your own first-person lookups too — the table is one application
+of a broader rule: prefer a small purpose-built script that returns
+structured high-value data in one call over an ad-hoc combination of
+`ls` / `cat` / `grep` / `git` calls.**
 
 | Subagent task shape | Directive to add to the subagent prompt |
 |---|---|
