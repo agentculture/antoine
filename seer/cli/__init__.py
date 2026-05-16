@@ -59,6 +59,7 @@ def _build_parser() -> argparse.ArgumentParser:
     # pylint: disable=import-outside-toplevel
     from seer.cli._commands import classify as _classify_cmd
     from seer.cli._commands import explain as _explain_cmd
+    from seer.cli._commands import grep as _grep_cmd
     from seer.cli._commands import learn as _learn_cmd
     from seer.cli._commands import whoami as _whoami_cmd
 
@@ -68,6 +69,7 @@ def _build_parser() -> argparse.ArgumentParser:
     _explain_cmd.register(sub)
     _whoami_cmd.register(sub)
     _classify_cmd.register(sub)
+    _grep_cmd.register(sub)
 
     return parser
 
