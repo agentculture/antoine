@@ -59,16 +59,24 @@ jobs:
           set -euo pipefail
           for pkg in seer-cli kata-cli code-lens-cli; do
             echo "::group::TestPyPI publish $pkg"
-            git checkout pyproject.toml
-            sed -i "s/^name = .*/name = \"$pkg\"/" pyproject.toml
-            sed -i "s/^version = .*/version = \"${DEV_VERSION}\"/" pyproject.toml
-            rm -rf dist/
-            uv build
-            uv publish --publish-url https://test.pypi.org/legacy/ --trusted-publishing always --check-url https://test.pypi.org/simple/
+            # Run the per-package steps in a subshell so set -e failures
+            # don't skip the ::endgroup:: marker — keeps Actions logs
+            # readable on publish failures.
+            rc=0
+            (
+              set -e
+              git checkout -- pyproject.toml
+              sed -i "s/^name = .*/name = \"$pkg\"/" pyproject.toml
+              sed -i "s/^version = .*/version = \"${DEV_VERSION}\"/" pyproject.toml
+              rm -rf dist/
+              uv build
+              uv publish --publish-url https://test.pypi.org/legacy/ --trusted-publishing always --check-url https://test.pypi.org/simple/
+            ) || rc=$?
             echo "::endgroup::"
+            [ $rc -eq 0 ] || exit $rc
           done
           # Final restore so any post-step inspections see the committed value.
-          git checkout pyproject.toml
+          git checkout -- pyproject.toml
 
       - name: Print install commands
         if: always()
@@ -99,13 +107,23 @@ jobs:
           set -euo pipefail
           for pkg in seer-cli kata-cli code-lens-cli; do
             echo "::group::Publishing $pkg"
-            # Restore pyproject from git (idempotent across loop iterations).
-            git checkout pyproject.toml
-            sed -i "s/^name = .*/name = \"$pkg\"/" pyproject.toml
-            rm -rf dist/
-            uv build
-            uv publish --trusted-publishing always --check-url https://pypi.org/simple/
+            # Run the per-package steps in a subshell so set -e failures
+            # don't skip the ::endgroup:: marker — keeps Actions logs
+            # readable on publish failures.
+            rc=0
+            (
+              set -e
+              # Restore pyproject from git (idempotent across loop iterations).
+              # `--` separates pathspec from refspec; defensive against the
+              # (very unlikely) case of a ref named `pyproject.toml`.
+              git checkout -- pyproject.toml
+              sed -i "s/^name = .*/name = \"$pkg\"/" pyproject.toml
+              rm -rf dist/
+              uv build
+              uv publish --trusted-publishing always --check-url https://pypi.org/simple/
+            ) || rc=$?
             echo "::endgroup::"
+            [ $rc -eq 0 ] || exit $rc
           done
           # Final restore so any post-step inspections see the committed value.
-          git checkout pyproject.toml
+          git checkout -- pyproject.toml
