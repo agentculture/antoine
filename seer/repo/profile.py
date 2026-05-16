@@ -12,7 +12,12 @@ Missing optional sources degrade silently to empty fields.
 
 from __future__ import annotations
 
+import ast
+import json
+import re
 import subprocess  # noqa: S404  # nosec B404
+import tomllib
+import urllib.request
 from pathlib import Path
 
 import yaml
@@ -20,19 +25,140 @@ import yaml
 from seer.repo.detect import resolve_name
 from seer.repo.manifest import read_pyproject
 
+_WORKFLOW_NAME_RE = re.compile(r"^name:\s*(.+?)\s*$", re.MULTILINE)
+_REMOTE_RE = re.compile(r"^(?:git@|https?://)([^:/]+)[:/](.+?)(?:\.git)?/?$")
 
-def profile_shallow(path: Path) -> dict[str, object]:
+
+_GH_TIMEOUT = 10  # seconds per gh api call
+
+
+def _gh_api(endpoint: str) -> dict | None:
+    """Run ``gh api <endpoint>`` and return parsed JSON, or None on any failure."""
+    try:
+        result = subprocess.run(  # noqa: S603,S607  # nosec B603 B607
+            ["gh", "api", endpoint],
+            capture_output=True,
+            text=True,
+            check=False,
+            timeout=_GH_TIMEOUT,
+        )
+    except FileNotFoundError:
+        return None
+    except subprocess.TimeoutExpired:
+        return None
+    if result.returncode != 0:
+        return None
+    try:
+        return json.loads(result.stdout)
+    except json.JSONDecodeError:
+        return None
+
+
+def _github_state(git_remote: dict | None) -> dict | None:
+    """Return live GitHub repo state via ``gh api``.
+
+    Queries three endpoints: repo metadata (default branch + open issues),
+    latest release, and latest CI run on the default branch.  Any network /
+    parse / missing-key failure causes a ``None`` return — callers must treat
+    the field as optional.
+    """
+    if git_remote is None:
+        return None
+    owner = git_remote.get("owner")
+    repo_name = git_remote.get("repo")
+    if not owner or not repo_name:
+        return None
+
+    slug = f"{owner}/{repo_name}"
+
+    repo_data = _gh_api(f"repos/{slug}")
+    if repo_data is None:
+        return None
+    try:
+        default_branch = repo_data["default_branch"]
+        open_issues = repo_data["open_issues_count"]
+    except KeyError:
+        return None
+
+    release_data = _gh_api(f"repos/{slug}/releases/latest")
+    latest_release: dict | None = None
+    if release_data is not None:
+        try:
+            latest_release = {
+                "tag": release_data["tag_name"],
+                "published_at": release_data["published_at"],
+            }
+        except KeyError:
+            latest_release = None
+
+    runs_data = _gh_api(f"repos/{slug}/actions/runs?branch={default_branch}&per_page=1")
+    ci_status: str | None = None
+    if runs_data is not None:
+        try:
+            runs = runs_data.get("workflow_runs") or []
+            if runs:
+                ci_status = runs[0].get("conclusion")
+        except (KeyError, IndexError):
+            ci_status = None
+
+    return {
+        "latest_release": latest_release,
+        "open_issues": open_issues,
+        "default_branch": default_branch,
+        "ci_status_on_default": ci_status,
+    }
+
+
+def _pypi_state(pkg_name: str | None) -> dict | None:
+    """Return published package state from the PyPI JSON API.
+
+    Queries ``https://pypi.org/pypi/<pkg_name>/json`` and extracts the
+    latest version and its upload timestamp.  Any network / parse / structural
+    failure returns ``None`` — callers must treat the field as optional.
+    """
+    if not pkg_name:
+        return None
+    url = f"https://pypi.org/pypi/{pkg_name}/json"
+    try:
+        with urllib.request.urlopen(url, timeout=5) as resp:  # noqa: S310  # nosec B310
+            raw = resp.read()
+    except OSError:
+        return None
+    try:
+        data = json.loads(raw)
+        version = data["info"]["version"]
+        releases = data.get("releases") or {}
+        release_files = releases.get(version) or []
+        released_at: str | None = None
+        if release_files:
+            released_at = release_files[0].get("upload_time_iso_8601")
+        return {"latest_version": version, "released_at": released_at}
+    except (json.JSONDecodeError, KeyError, IndexError):
+        return None
+
+
+def profile_shallow(path: Path, *, basic: bool = False) -> dict[str, object]:
     """Return a shallow profile dict for the repo at ``path``.
 
     Reads from multiple optional sources (pyproject.toml, CLAUDE.md,
     CHANGELOG.md, CITATION.md, .claude/skills/, culture.yaml) and degrades
     silently when any source is missing.
+
+    When ``basic=True`` the Tier-2 online fields (``github_state``,
+    ``pypi_state``) are skipped entirely — no subprocess or network calls are
+    made for those fields.
     """
-    has_pyproject = (path / "pyproject.toml").exists()
+    has_pyproject = (path / _PYPROJECT_TOML).exists()
     if has_pyproject:
         m = read_pyproject(path)
         language = "python"
-        manifest: str | None = "pyproject.toml"
+        manifest: str | None = _PYPROJECT_TOML
+        try:
+            raw_pyproject: dict | None = tomllib.loads(
+                (path / _PYPROJECT_TOML).read_text(encoding="utf-8")
+            )
+        except (tomllib.TOMLDecodeError, OSError):
+            raw_pyproject = None
     else:
         m = {
             "name": resolve_name(path),
@@ -43,7 +169,10 @@ def profile_shallow(path: Path) -> dict[str, object]:
         }
         language = "unknown"
         manifest = None
-
+        raw_pyproject = None
+    package_tree = _package_tree(path)
+    git_remote = _git_remote(path)
+    pkg_name: str | None = m.get("name") or None  # type: ignore[assignment]
     profile: dict[str, object] = {
         "path": str(path),
         "name": m["name"],
@@ -54,7 +183,14 @@ def profile_shallow(path: Path) -> dict[str, object]:
         "deps_runtime": m["deps_runtime"],
         "deps_dev": m["deps_dev"],
         "package_layout": _list_packages(path),
-        "package_tree": _package_tree(path),
+        "package_tree": package_tree,
+        "build_test": _build_test(raw_pyproject),
+        "ci_workflows": _ci_workflows(path),
+        "publish_target": _publish_target(path),
+        "git_remote": git_remote,
+        "module_summaries": _module_docs(path, package_tree),
+        "github_state": None if basic else _github_state(git_remote),
+        "pypi_state": None if basic else _pypi_state(pkg_name),
         "vendored_skills": _list_vendored_skills(path),
         "citations": _read_citations(path),
         "changelog_recent": _read_changelog(path, n=3),
@@ -69,6 +205,7 @@ def profile_shallow(path: Path) -> dict[str, object]:
 
 _PKG_EXCLUDE = {"tests", "docs", "scripts", "__pycache__"}
 _INIT_PY = "__init__.py"
+_PYPROJECT_TOML = "pyproject.toml"
 
 
 def _is_candidate_pkg_dir(child: Path) -> bool:
@@ -301,13 +438,194 @@ def _read_culture_nick(path: Path) -> str:
     return str(agents[0].get("suffix") or agents[0].get("nick") or "")
 
 
+def _build_test(pyproject: dict | None) -> dict | None:
+    """Extract test/coverage/python metadata from a raw pyproject dict.
+
+    Returns a dict with some subset of ``test_command``, ``test_addopts``,
+    ``coverage_fail_under``, and ``python_requires``.  Keys whose value is
+    None are dropped.  Returns None when *pyproject* is None.
+    """
+    if pyproject is None:
+        return None
+    pytest_opts = pyproject.get("tool") or {}
+    pytest_addopts = ((pytest_opts.get("pytest") or {}).get("ini_options") or {}).get("addopts")
+    coverage_fail = ((pytest_opts.get("coverage") or {}).get("report") or {}).get("fail_under")
+    python_requires = (pyproject.get("project") or {}).get("requires-python")
+    result: dict = {"test_command": "pytest"}
+    if pytest_addopts is not None:
+        result["test_addopts"] = pytest_addopts
+    if coverage_fail is not None:
+        result["coverage_fail_under"] = coverage_fail
+    if python_requires is not None:
+        result["python_requires"] = python_requires
+    return result
+
+
+def _ci_workflows(path: Path) -> list[dict[str, str]]:
+    """Scan ``.github/workflows/*.{yml,yaml}`` and return name + filename entries."""
+    workflows_dir = path / ".github" / "workflows"
+    if not workflows_dir.is_dir():
+        return []
+    out: list[dict[str, str]] = []
+    for wf_file in sorted(workflows_dir.iterdir()):
+        if wf_file.suffix not in {".yml", ".yaml"}:
+            continue
+        try:
+            text = wf_file.read_text(encoding="utf-8")
+        except OSError:
+            continue
+        m = _WORKFLOW_NAME_RE.search(text)
+        if m:
+            raw_name = m.group(1).strip()
+            # strip enclosing quotes
+            if len(raw_name) >= 2 and raw_name[0] in ('"', "'") and raw_name[-1] == raw_name[0]:
+                raw_name = raw_name[1:-1]
+            name = raw_name
+        else:
+            name = ""
+        out.append({"file": wf_file.name, "name": name})
+    return out
+
+
+# (needle, label) pairs tried in priority order for both block and inline forms.
+_TRIGGER_NEEDLES = (
+    ("tags:", "push: tags"),
+    ("release", "release"),
+    ("workflow_dispatch", "workflow_dispatch"),
+    ("schedule", "schedule"),
+    ("pull_request", "pull_request"),
+    ("branches:", "push: branches"),
+)
+
+
+def _classify_trigger(haystack: str) -> str | None:
+    """Return the first matching trigger label for *haystack*, or ``None``."""
+    for needle, label in _TRIGGER_NEEDLES:
+        if needle in haystack:
+            return label
+    return None
+
+
+def _summarize_on_block(text: str) -> str:
+    """Coarse classifier for the ``on:`` block in a workflow file."""
+    block_re = re.compile(r"^on:\s*\n((?:[ \t]+.*\n?)*)", re.MULTILINE)
+    m = block_re.search(text)
+    if m:
+        return _classify_trigger(m.group(0)) or "unknown"
+    inline_re = re.compile(r"^on:\s*(.+)$", re.MULTILINE)
+    im = inline_re.search(text)
+    if im:
+        val = im.group(1).strip().lower()
+        if "push" in val and not _classify_trigger(val):
+            return "push: branches"
+        return _classify_trigger(val) or "unknown"
+    return "unknown"
+
+
+def _publish_target(path: Path) -> dict | None:
+    """Detect the first PyPI/GHCR publish workflow; return kind/workflow/trigger or None."""
+    workflows_dir = path / ".github" / "workflows"
+    if not workflows_dir.is_dir():
+        return None
+    for wf_file in sorted(workflows_dir.iterdir()):
+        if wf_file.suffix not in {".yml", ".yaml"}:
+            continue
+        try:
+            text = wf_file.read_text(encoding="utf-8")
+        except OSError:
+            continue
+        if "pypa/gh-action-pypi-publish" in text or "pypi.org" in text:
+            kind = "pypi"
+        elif "ghcr.io" in text:
+            kind = "ghcr"
+        else:
+            continue
+        return {
+            "kind": kind,
+            "workflow": wf_file.name,
+            "trigger": _summarize_on_block(text),
+        }
+    return None
+
+
+def _git_remote(path: Path) -> dict | None:
+    """Return parsed ``origin`` remote info from git, or None on failure."""
+    try:
+        result = subprocess.run(  # noqa: S603,S607  # nosec B603 B607
+            ["git", "remote", "get-url", "origin"],
+            cwd=path,
+            capture_output=True,
+            text=True,
+            check=False,
+            timeout=2,
+        )
+    except FileNotFoundError:
+        return None
+    except subprocess.TimeoutExpired:
+        return None
+    if result.returncode != 0:
+        return None
+    raw_url = result.stdout.strip()
+    m = _REMOTE_RE.match(raw_url)
+    if not m:
+        return {"url": raw_url, "ref": "origin"}
+    host = m.group(1)
+    path_part = m.group(2)
+    parts = path_part.split("/", 1)
+    owner = parts[0] if len(parts) >= 1 else ""
+    repo_name = parts[1] if len(parts) >= 2 else ""
+    return {"host": host, "owner": owner, "repo": repo_name, "url": raw_url, "ref": "origin"}
+
+
+def _collect_module_files(node: dict, base_path: Path, pkg_path: Path) -> list[tuple[str, Path]]:
+    """Recursively collect (relative_path_str, abs_path) pairs from a package_tree node."""
+    results: list[tuple[str, Path]] = []
+    for mod in node.get("modules") or []:
+        rel = pkg_path / mod
+        abs_path = base_path / rel
+        results.append((str(rel), abs_path))
+    for sub in node.get("subpackages") or []:
+        sub_pkg_path = pkg_path / sub["name"]
+        results.extend(_collect_module_files(sub, base_path, sub_pkg_path))
+    return results
+
+
+def _module_docs(path: Path, package_tree: list[dict]) -> list[dict]:
+    """Return first-docstring-line summaries for modules in the package tree."""
+    out: list[dict] = []
+    for node in package_tree:
+        pkg_root = Path(node["name"])
+        # Check if this package lives under src/
+        candidate_src = path / "src" / node["name"]
+        if candidate_src.is_dir():
+            base_path = path / "src"
+        else:
+            base_path = path
+        pkg_path = pkg_root
+        for rel_str, abs_path in _collect_module_files(node, base_path, pkg_path):
+            try:
+                source = abs_path.read_text(encoding="utf-8")
+                tree = ast.parse(source)
+            except (SyntaxError, OSError, UnicodeDecodeError):
+                continue
+            docstring = ast.get_docstring(tree)
+            if not docstring:
+                continue
+            first_line = docstring.strip().splitlines()[0].strip()
+            if not first_line:
+                continue
+            out.append({"module": rel_str, "summary": first_line[:120]})
+    out.sort(key=lambda x: x["module"])
+    return out
+
+
 _DEEP_HEADINGS = ("## Project Status", "## Architecture")
 _DEEP_KEYWORDS = ("invariant", "rule", "contract")
 
 
-def profile_deep(path: Path) -> dict[str, object]:
+def profile_deep(path: Path, *, basic: bool = False) -> dict[str, object]:
     """Shallow profile + readme intro, design-section text, recent commits."""
-    p = profile_shallow(path)
+    p = profile_shallow(path, basic=basic)
     p["readme_intro"] = _read_readme_intro(path)
     p["claude_md_sections"] = _read_claude_md_design_sections(path)
     p["commits_recent"] = _read_recent_commits(path, n=10)

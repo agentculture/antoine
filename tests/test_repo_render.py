@@ -208,6 +208,171 @@ def test_render_connections_markdown_inlines_errors() -> None:
     assert "TOML syntax error." in md
 
 
+def test_render_profile_markdown_build_test_positive() -> None:
+    """build_test section renders as bullet list preceded by --- separator."""
+    fx = _shallow_fixture()
+    fx["build_test"] = {
+        "test_command": "pytest",
+        "test_addopts": "-n auto",
+        "coverage_fail_under": 80,
+        "python_requires": ">=3.11",
+    }
+    md = render_profile_markdown(fx)
+    assert "## Build & test" in md
+    idx = md.index("## Build & test")
+    prefix = md[:idx]
+    assert prefix.rstrip().endswith("---"), "no `---` before ## Build & test"
+    assert "- test_command: pytest" in md
+    assert "- test_addopts: -n auto" in md
+    assert "- coverage_fail_under: 80" in md
+    assert "- python_requires: >=3.11" in md
+
+
+def test_render_profile_markdown_build_test_negative() -> None:
+    """build_test section absent when field is None."""
+    fx = _shallow_fixture()
+    fx["build_test"] = None
+    md = render_profile_markdown(fx)
+    assert "## Build & test" not in md
+
+
+def test_render_profile_markdown_ci_workflows_positive() -> None:
+    """ci_workflows section renders as markdown table preceded by --- separator."""
+    fx = _shallow_fixture()
+    fx["ci_workflows"] = [
+        {"file": "publish.yml", "name": "Publish"},
+        {"file": "tests.yml", "name": "Tests"},
+    ]
+    md = render_profile_markdown(fx)
+    assert "## CI workflows" in md
+    idx = md.index("## CI workflows")
+    prefix = md[:idx]
+    assert prefix.rstrip().endswith("---"), "no `---` before ## CI workflows"
+    assert "| File | Name |" in md
+    assert "| publish.yml | Publish |" in md
+    assert "| tests.yml | Tests |" in md
+
+
+def test_render_profile_markdown_ci_workflows_negative() -> None:
+    """ci_workflows section absent when list is empty."""
+    fx = _shallow_fixture()
+    fx["ci_workflows"] = []
+    md = render_profile_markdown(fx)
+    assert "## CI workflows" not in md
+
+
+def test_render_profile_markdown_publish_target_positive() -> None:
+    """publish_target section renders as bullet block preceded by --- separator."""
+    fx = _shallow_fixture()
+    fx["publish_target"] = {"kind": "pypi", "workflow": "publish.yml", "trigger": "push: tags"}
+    md = render_profile_markdown(fx)
+    assert "## Publish target" in md
+    idx = md.index("## Publish target")
+    prefix = md[:idx]
+    assert prefix.rstrip().endswith("---"), "no `---` before ## Publish target"
+    assert "- kind: pypi" in md
+    assert "- workflow: publish.yml" in md
+    assert "- trigger: push: tags" in md
+
+
+def test_render_profile_markdown_publish_target_negative() -> None:
+    """publish_target section absent when field is None."""
+    fx = _shallow_fixture()
+    fx["publish_target"] = None
+    md = render_profile_markdown(fx)
+    assert "## Publish target" not in md
+
+
+def test_render_profile_markdown_git_remote_positive() -> None:
+    """git_remote section renders all keys preceded by --- separator."""
+    fx = _shallow_fixture()
+    fx["git_remote"] = {
+        "host": "github.com",
+        "owner": "agentculture",
+        "repo": "seer-cli",
+        "url": "git@github.com:agentculture/seer-cli.git",
+        "ref": "origin",
+    }
+    md = render_profile_markdown(fx)
+    assert "## Git remote" in md
+    idx = md.index("## Git remote")
+    prefix = md[:idx]
+    assert prefix.rstrip().endswith("---"), "no `---` before ## Git remote"
+    assert "host" in md
+    assert "github.com" in md
+    assert "agentculture" in md
+
+
+def test_render_profile_markdown_git_remote_negative() -> None:
+    """git_remote section absent when field is None."""
+    fx = _shallow_fixture()
+    fx["git_remote"] = None
+    md = render_profile_markdown(fx)
+    assert "## Git remote" not in md
+
+
+def test_render_profile_markdown_module_summaries_positive() -> None:
+    """module_summaries section renders as table preceded by --- separator."""
+    fx = _shallow_fixture()
+    fx["module_summaries"] = [
+        {"module": "pkg/__init__.py", "summary": "Package init."},
+        {"module": "pkg/cli.py", "summary": "Command-line entry point."},
+    ]
+    md = render_profile_markdown(fx)
+    assert "## Module summaries" in md
+    idx = md.index("## Module summaries")
+    prefix = md[:idx]
+    assert prefix.rstrip().endswith("---"), "no `---` before ## Module summaries"
+    assert "| Module | Summary |" in md
+    assert "| pkg/__init__.py | Package init. |" in md
+    assert "| pkg/cli.py | Command-line entry point. |" in md
+
+
+def test_render_profile_markdown_module_summaries_negative() -> None:
+    """module_summaries section absent when list is empty."""
+    fx = _shallow_fixture()
+    fx["module_summaries"] = []
+    md = render_profile_markdown(fx)
+    assert "## Module summaries" not in md
+
+
+def test_render_profile_markdown_section_ordering() -> None:
+    """Tier-1 sections appear in specified order in the rendered output."""
+    fx = _shallow_fixture()
+    fx["build_test"] = {"test_command": "pytest"}
+    fx["ci_workflows"] = [{"file": "tests.yml", "name": "Tests"}]
+    fx["publish_target"] = {"kind": "pypi", "workflow": "publish.yml", "trigger": "push: tags"}
+    fx["git_remote"] = {
+        "host": "github.com",
+        "owner": "x",
+        "repo": "y",
+        "url": "u",
+        "ref": "origin",
+    }
+    fx["module_summaries"] = [{"module": "x.py", "summary": "X."}]
+    md = render_profile_markdown(fx)
+    # Extract positions of all expected section headings
+    sections = [
+        "## Runtime dependencies",
+        "## Package layout",
+        "## Build & test",
+        "## CI workflows",
+        "## Publish target",
+        "## Git remote",
+        "## Module summaries",
+        "## Vendored skills",
+        "## Citations",
+        "## Recent changelog",
+        "## Project status",
+        "## Extra",
+    ]
+    positions = []
+    for s in sections:
+        assert s in md, f"missing section: {s}"
+        positions.append(md.index(s))
+    assert positions == sorted(positions), "sections are not in expected order"
+
+
 def test_render_graph_markdown_includes_mermaid() -> None:
     g = {
         "roots": ["/home/user/projects"],
@@ -228,3 +393,73 @@ def test_render_graph_markdown_includes_mermaid() -> None:
     assert "alpha" in md and "beta" in md
     assert "```mermaid" in md
     assert "graph TD" in md
+
+
+# ---------------------------------------------------------------------------
+# B4 — Tier-2 render sections
+# ---------------------------------------------------------------------------
+
+
+def _tier2_fixture() -> dict[str, object]:
+    """Fixture with both Tier-2 fields populated."""
+    fx = _shallow_fixture()
+    fx["github_state"] = {
+        "latest_release": {"tag": "v0.5.0", "published_at": "2025-12-01T10:00:00Z"},
+        "open_issues": 4,
+        "default_branch": "main",
+        "ci_status_on_default": "success",
+    }
+    fx["pypi_state"] = {
+        "latest_version": "0.5.0",
+        "released_at": "2026-05-15T12:00:00Z",
+    }
+    return fx
+
+
+def test_render_profile_markdown_github_state_section() -> None:
+    """github_state renders a ## GitHub section with all 4 keys."""
+    md = render_profile_markdown(_tier2_fixture())
+    assert "## GitHub" in md
+    # preceded by ---
+    idx = md.index("## GitHub")
+    prefix = md[:idx]
+    assert prefix.rstrip().endswith("---"), "no `---` before ## GitHub"
+    assert "v0.5.0" in md
+    assert "2025-12-01" in md
+    assert "open_issues" in md or "4" in md
+    assert "main" in md
+    assert "success" in md
+
+
+def test_render_profile_markdown_pypi_state_section() -> None:
+    """pypi_state renders a ## PyPI section."""
+    md = render_profile_markdown(_tier2_fixture())
+    assert "## PyPI" in md
+    idx = md.index("## PyPI")
+    prefix = md[:idx]
+    assert prefix.rstrip().endswith("---"), "no `---` before ## PyPI"
+    assert "0.5.0" in md
+    assert "2026-05-15" in md
+
+
+def test_render_profile_markdown_tier2_absent_when_none() -> None:
+    """When github_state and pypi_state are None, headings are absent."""
+    fx = _shallow_fixture()
+    fx["github_state"] = None
+    fx["pypi_state"] = None
+    md = render_profile_markdown(fx)
+    assert "## GitHub" not in md
+    assert "## PyPI" not in md
+
+
+def test_render_profile_markdown_tier2_section_order() -> None:
+    """github_state and pypi_state sections appear after extra."""
+    md = render_profile_markdown(_tier2_fixture())
+    sections = ["## Extra", "## GitHub", "## PyPI"]
+    positions = []
+    for s in sections:
+        assert s in md, f"missing section: {s}"
+        positions.append(md.index(s))
+    assert positions == sorted(
+        positions
+    ), f"sections not in order: {list(zip(sections, positions))}"

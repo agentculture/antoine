@@ -105,6 +105,72 @@ def _append_package_layout(
         lines.append(f"- {item}")
 
 
+def _append_build_test(lines: list[str], build_test: dict) -> None:
+    """Append the `## Build & test` block."""
+    _section_break(lines)
+    lines.append("## Build & test")
+    for k, v in build_test.items():
+        lines.append(f"- {k}: {v}")
+
+
+def _append_ci_workflows(lines: list[str], workflows: list[dict]) -> None:
+    """Append the `## CI workflows` table section."""
+    _section_break(lines)
+    lines.append("## CI workflows")
+    lines.append("| File | Name |")
+    lines.append("|---|---|")
+    for wf in workflows:
+        lines.append(f"| {wf.get('file', '')} | {wf.get('name', '')} |")
+
+
+def _append_publish_target(lines: list[str], pt: dict) -> None:
+    """Append the `## Publish target` block."""
+    _section_break(lines)
+    lines.append("## Publish target")
+    lines.append(f"- kind: {pt.get('kind', '')}")
+    lines.append(f"- workflow: {pt.get('workflow', '')}")
+    lines.append(f"- trigger: {pt.get('trigger', '')}")
+
+
+def _append_git_remote(lines: list[str], gr: dict) -> None:
+    """Append the `## Git remote` block."""
+    _section_break(lines)
+    lines.append("## Git remote")
+    for k, v in gr.items():
+        lines.append(f"- {k}: {v}")
+
+
+def _append_module_summaries(lines: list[str], summaries: list[dict]) -> None:
+    """Append the `## Module summaries` table section."""
+    _section_break(lines)
+    lines.append("## Module summaries")
+    lines.append("| Module | Summary |")
+    lines.append("|---|---|")
+    for entry in summaries:
+        lines.append(f"| {entry.get('module', '')} | {entry.get('summary', '')} |")
+
+
+def _render_build_test_section(lines: list[str], profile: dict[str, Any]) -> None:
+    """Render the build_test section if present and non-None."""
+    bt = profile.get("build_test")
+    if bt:
+        _append_build_test(lines, bt)
+
+
+def _render_publish_target_section(lines: list[str], profile: dict[str, Any]) -> None:
+    """Render the publish_target section if present and non-None."""
+    pt = profile.get("publish_target")
+    if pt:
+        _append_publish_target(lines, pt)
+
+
+def _render_git_remote_section(lines: list[str], profile: dict[str, Any]) -> None:
+    """Render the git_remote section if present and non-None."""
+    gr = profile.get("git_remote")
+    if gr:
+        _append_git_remote(lines, gr)
+
+
 def _append_project_status(lines: list[str], status: str) -> None:
     """Append the `## Project status` block."""
     _section_break(lines)
@@ -118,6 +184,30 @@ def _append_extra(lines: list[str], extra: dict[str, Any]) -> None:
     lines.append("## Extra")
     for k, v in extra.items():
         lines.append(f"- **{k}:** {v}")
+
+
+def _append_github_state(lines: list[str], gs: dict[str, Any]) -> None:
+    """Append the `## GitHub` block for github_state data."""
+    _section_break(lines)
+    lines.append("## GitHub")
+    release = gs.get("latest_release")
+    if release:
+        tag = release.get("tag", "")
+        pub = release.get("published_at", "")
+        lines.append(f"- latest_release: {tag} ({pub})")
+    else:
+        lines.append("- latest_release: none")
+    lines.append(f"- open_issues: {gs.get('open_issues', '')}")
+    lines.append(f"- default_branch: {gs.get('default_branch', '')}")
+    lines.append(f"- ci_status_on_default: {gs.get('ci_status_on_default', '')}")
+
+
+def _append_pypi_state(lines: list[str], ps: dict[str, Any]) -> None:
+    """Append the `## PyPI` block for pypi_state data."""
+    _section_break(lines)
+    lines.append("## PyPI")
+    lines.append(f"- latest_version: {ps.get('latest_version', '')}")
+    lines.append(f"- released_at: {ps.get('released_at', '')}")
 
 
 def _render_package_layout_section(lines: list[str], profile: dict[str, Any]) -> None:
@@ -134,11 +224,18 @@ def _render_package_layout_section(lines: list[str], profile: dict[str, Any]) ->
 _SHALLOW_RENDERERS: list[Any] = [
     ("deps_runtime", _append_deps_runtime),
     _render_package_layout_section,
+    _render_build_test_section,
+    ("ci_workflows", _append_ci_workflows),
+    _render_publish_target_section,
+    _render_git_remote_section,
+    ("module_summaries", _append_module_summaries),
     ("vendored_skills", _append_skill_table),
     ("citations", _append_citation_table),
     ("changelog_recent", _append_changelog),
     ("claude_md_status", _append_project_status),
     ("extra", _append_extra),
+    ("github_state", _append_github_state),
+    ("pypi_state", _append_pypi_state),
 ]
 
 
