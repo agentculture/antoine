@@ -98,6 +98,28 @@ The harness gates the planned redesign of the `learn` / `explain` /
 brainstorm** — fed by the eval results, not by the harness's
 existence.
 
+## Dispatching subagents — inject code-lookup / repo-map directives
+
+When delegating a task to a subagent (Explore, general-purpose, Plan, etc.),
+check whether the task shape matches one of the rows below; if so, include
+the matching directive **verbatim** in the subagent's prompt:
+
+| Subagent task shape | Directive to add to the subagent prompt |
+|---|---|
+| "what changed in the last N commits / which functions or classes changed across commits" | `Use the code-lookup skill's recent verb (.claude/skills/code-lookup/scripts/recent.sh) for the commit + symbol-diff data. Do not call git log / git diff / git show directly for this question.` |
+| "where is `<pattern>` referenced / find usages with enclosing scope" | `Use the code-lookup skill's grep verb (.claude/skills/code-lookup/scripts/grep.sh <pattern>) for match + scope. Do not use raw rg / grep for this question.` |
+| "what kind of project is this — CLI? library? PyPI-published? dockerized?" | `Use the code-lookup skill's classify verb (.claude/skills/code-lookup/scripts/classify.sh).` |
+| "profile this repo / build-test story / repo overview / what fields does pyproject expose" | `Use the repo-map skill's profile verb (.claude/skills/repo-map/scripts/profile.sh).` |
+
+**Why this lives in CLAUDE.md and not in the skill descriptions:** round-2
+of the PR #18 organic-adoption smokes showed that **subagents construct their
+plan before consulting the skills catalog**, so a description-shape change
+on the skill itself does not move adoption (0 of 2 models picked up `seer
+recent` for a question perfectly tuned for it). The dispatcher is the right
+lever: the parent agent loads CLAUDE.md at session start and can inject the
+directive into the subagent's prompt **before** the subagent forms its plan.
+Directed-use adoption is reliable; organic adoption is not.
+
 ## Workspace Context
 
 The GitHub remote is `agentculture/seer-cli`. When opening PRs or posting comments here as an AI assistant, sign them so it's clear they're AI-authored — e.g. `- seer (Claude)`.
