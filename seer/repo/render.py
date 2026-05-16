@@ -186,6 +186,30 @@ def _append_extra(lines: list[str], extra: dict[str, Any]) -> None:
         lines.append(f"- **{k}:** {v}")
 
 
+def _append_github_state(lines: list[str], gs: dict[str, Any]) -> None:
+    """Append the `## GitHub` block for github_state data."""
+    _section_break(lines)
+    lines.append("## GitHub")
+    release = gs.get("latest_release")
+    if release:
+        tag = release.get("tag", "")
+        pub = release.get("published_at", "")
+        lines.append(f"- latest_release: {tag} ({pub})")
+    else:
+        lines.append("- latest_release: none")
+    lines.append(f"- open_issues: {gs.get('open_issues', '')}")
+    lines.append(f"- default_branch: {gs.get('default_branch', '')}")
+    lines.append(f"- ci_status_on_default: {gs.get('ci_status_on_default', '')}")
+
+
+def _append_pypi_state(lines: list[str], ps: dict[str, Any]) -> None:
+    """Append the `## PyPI` block for pypi_state data."""
+    _section_break(lines)
+    lines.append("## PyPI")
+    lines.append(f"- latest_version: {ps.get('latest_version', '')}")
+    lines.append(f"- released_at: {ps.get('released_at', '')}")
+
+
 def _render_package_layout_section(lines: list[str], profile: dict[str, Any]) -> None:
     """Render the package-layout section from either the nested tree or the flat list."""
     layout = profile.get("package_layout") or []
@@ -210,6 +234,8 @@ _SHALLOW_RENDERERS: list[Any] = [
     ("changelog_recent", _append_changelog),
     ("claude_md_status", _append_project_status),
     ("extra", _append_extra),
+    ("github_state", _append_github_state),
+    ("pypi_state", _append_pypi_state),
 ]
 
 

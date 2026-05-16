@@ -393,3 +393,72 @@ def test_render_graph_markdown_includes_mermaid() -> None:
     assert "alpha" in md and "beta" in md
     assert "```mermaid" in md
     assert "graph TD" in md
+
+
+# ---------------------------------------------------------------------------
+# B4 — Tier-2 render sections
+# ---------------------------------------------------------------------------
+
+def _tier2_fixture() -> dict[str, object]:
+    """Fixture with both Tier-2 fields populated."""
+    fx = _shallow_fixture()
+    fx["github_state"] = {
+        "latest_release": {"tag": "v0.5.0", "published_at": "2025-12-01T10:00:00Z"},
+        "open_issues": 4,
+        "default_branch": "main",
+        "ci_status_on_default": "success",
+    }
+    fx["pypi_state"] = {
+        "latest_version": "0.5.0",
+        "released_at": "2026-05-15T12:00:00Z",
+    }
+    return fx
+
+
+def test_render_profile_markdown_github_state_section() -> None:
+    """github_state renders a ## GitHub section with all 4 keys."""
+    md = render_profile_markdown(_tier2_fixture())
+    assert "## GitHub" in md
+    # preceded by ---
+    idx = md.index("## GitHub")
+    prefix = md[:idx]
+    assert prefix.rstrip().endswith("---"), "no `---` before ## GitHub"
+    assert "v0.5.0" in md
+    assert "2025-12-01" in md
+    assert "open_issues" in md or "4" in md
+    assert "main" in md
+    assert "success" in md
+
+
+def test_render_profile_markdown_pypi_state_section() -> None:
+    """pypi_state renders a ## PyPI section."""
+    md = render_profile_markdown(_tier2_fixture())
+    assert "## PyPI" in md
+    idx = md.index("## PyPI")
+    prefix = md[:idx]
+    assert prefix.rstrip().endswith("---"), "no `---` before ## PyPI"
+    assert "0.5.0" in md
+    assert "2026-05-15" in md
+
+
+def test_render_profile_markdown_tier2_absent_when_none() -> None:
+    """When github_state and pypi_state are None, headings are absent."""
+    fx = _shallow_fixture()
+    fx["github_state"] = None
+    fx["pypi_state"] = None
+    md = render_profile_markdown(fx)
+    assert "## GitHub" not in md
+    assert "## PyPI" not in md
+
+
+def test_render_profile_markdown_tier2_section_order() -> None:
+    """github_state and pypi_state sections appear after extra."""
+    md = render_profile_markdown(_tier2_fixture())
+    sections = ["## Extra", "## GitHub", "## PyPI"]
+    positions = []
+    for s in sections:
+        assert s in md, f"missing section: {s}"
+        positions.append(md.index(s))
+    assert positions == sorted(positions), (
+        f"sections not in order: {list(zip(sections, positions))}"
+    )
