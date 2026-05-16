@@ -1,37 +1,38 @@
 ---
 name: code-lookup
 description: >
-  Three verbs for codebase structure — each collapses N reads into 1
-  structured call.
+  Pick the verb by the question you're asking, not the tool you'd otherwise
+  reach for. Three questions, three one-call answers:
 
-  **`classify`** — `scripts/classify.sh [<path>]` returns: manifest type +
-  language, and a tag list (`python`, `node`, `bash`, `cli`, `library`,
-  `dockerized`, `tested`, `packaged-pypi`, `agentculture-sibling`), each with
-  the concrete evidence that fired it (e.g. "Dockerfile present",
-  "[project.scripts] defines `foo = …`", ".github/workflows/publish.yml uploads
-  to pypi.org"). Prefer over manually reading pyproject.toml + Dockerfile +
-  workflows + culture.yaml separately — one call collapses ~5–7 Read/Bash steps
-  into a structured tag list with citations. When NOT to use: if you only need
-  one specific fact (e.g. "is there a Dockerfile"), Read/glob is cheaper.
-  Markdown by default; `--json` for machine-readable.
+  **"What changed in the last N commits — which functions or classes did each
+  commit add, remove, or modify?"** → use `recent`, **not** `git log` + `git
+  show` + manual diff reading. `scripts/recent.sh [<path>] [-n N]` returns
+  `{"commits": [{"sha","date","subject","changes":[{"file","added","removed","modified"}, …]}, …]}`
+  — the symbol diff is computed via AST, so you skip the manual "what
+  functions changed" step. The `modified` heuristic compares function
+  line-spans; pure line shifts can cause false positives (a deferred
+  improvement).
 
-  **`grep`** — `scripts/grep.sh <pattern> [<path>]` runs ripgrep across a
-  codebase and annotates every match with its enclosing Python function/class
-  name via the AST scope resolver. Returns `{"pattern": "…", "matches":
-  [{"file", "line", "scope", "text"}, …]}`. Requires `ripgrep` (`rg`) on PATH.
-  Prefer over raw `grep` when you also need to know *which function* owns the
-  match. Markdown by default; `--json` for machine-readable.
+  **"Where is `<pattern>` referenced — and what function or class owns each
+  match?"** → use `grep`, **not** `rg`/`grep` + Read each file to find the
+  enclosing scope. `scripts/grep.sh <pattern> [<path>]` returns
+  `{"pattern","matches":[{"file","line","scope","text"}, …]}` — `scope` is the
+  enclosing Python function or class, resolved via AST. Requires `ripgrep`
+  (`rg`) on PATH; falls back to a clean env-error if missing.
 
-  **`recent`** — `scripts/recent.sh [<path>] [-n N]` runs `git log -n N` and
-  for each commit pairs every changed file with a structural symbol-diff at the
-  AST level. Returns `{"commits": [{"sha", "date", "subject", "changes":
-  [{"file", "added": […], "removed": […], "modified": […]}, …]}, …]}`.
-  Non-Python files always have empty `added`/`removed`/`modified` lists (callers
-  see *that* the file changed, no symbol detail). The `modified` heuristic
-  compares function line-spans; pure line shifts can cause false positives (a
-  deferred improvement). Prefer over `git log` + manual file reading when you
-  need to know *which symbols* changed across N commits. Markdown by default;
-  `--json` for machine-readable.
+  **"What kind of project is this — is it a CLI, library, dockerized,
+  PyPI-published, tested?"** → use `classify`, **not** Read pyproject.toml +
+  Dockerfile + `.github/workflows/*` + culture.yaml in sequence.
+  `scripts/classify.sh [<path>]` returns manifest type + language + a tag list
+  (`python`, `node`, `bash`, `cli`, `library`, `dockerized`, `tested`,
+  `packaged-pypi`, `agentculture-sibling`) each with the concrete evidence
+  that fired it (e.g. "Dockerfile present", "[project.scripts] defines `foo
+  = …`", ".github/workflows/publish.yml uploads to pypi.org"). Collapses
+  ~5–7 Read/Bash steps into a structured tag list with citations.
+
+  All three: Markdown by default; `--json` for machine-readable. When NOT to
+  use: if you only need one specific fact (e.g. "is there a Dockerfile"),
+  Read/Glob is cheaper than spinning the whole verb up.
 ---
 
 # code-lookup
