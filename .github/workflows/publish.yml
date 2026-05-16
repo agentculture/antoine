@@ -54,20 +54,36 @@ jobs:
           echo "DEV_VERSION=${DEV_VERSION}" >> "$GITHUB_ENV"
           echo "Publishing ${DEV_VERSION} to TestPyPI"
 
-      # TestPyPI publishes only seer-cli (single distribution) to verify the
-      # build pipeline. The dual-publish loop runs in the prod `publish` job
-      # below — TestPyPI doesn't yet have trusted-publisher configs for
-      # kata-cli / code-lens-cli. Adding TestPyPI parity for those is a
-      # follow-up that requires PyPI-side config first.
-      - name: Build and publish to TestPyPI
+      - name: Build and publish each distribution to TestPyPI
         run: |
-          uv build
-          uv publish --publish-url https://test.pypi.org/legacy/ --trusted-publishing always --check-url https://test.pypi.org/simple/
+          set -euo pipefail
+          for pkg in seer-cli kata-cli code-lens-cli; do
+            echo "::group::TestPyPI publish $pkg"
+            # Run the per-package steps in a subshell so set -e failures
+            # don't skip the ::endgroup:: marker — keeps Actions logs
+            # readable on publish failures.
+            rc=0
+            (
+              set -e
+              git checkout -- pyproject.toml
+              sed -i "s/^name = .*/name = \"$pkg\"/" pyproject.toml
+              sed -i "s/^version = .*/version = \"${DEV_VERSION}\"/" pyproject.toml
+              rm -rf dist/
+              uv build
+              uv publish --publish-url https://test.pypi.org/legacy/ --trusted-publishing always --check-url https://test.pypi.org/simple/
+            ) || rc=$?
+            echo "::endgroup::"
+            [ $rc -eq 0 ] || exit $rc
+          done
+          # Final restore so any post-step inspections see the committed value.
+          git checkout -- pyproject.toml
 
       - name: Print install commands
         if: always()
         run: |
-          echo "::notice::Test with: uv tool install --index-url https://test.pypi.org/simple/ --index-strategy unsafe-best-match seer-cli==${DEV_VERSION}"
+          for pkg in seer-cli kata-cli code-lens-cli; do
+            echo "::notice::Test with: uv tool install --index-url https://test.pypi.org/simple/ --index-strategy unsafe-best-match $pkg==${DEV_VERSION}"
+          done
 
   publish:
     if: github.event_name == 'push'
@@ -91,13 +107,23 @@ jobs:
           set -euo pipefail
           for pkg in seer-cli kata-cli code-lens-cli; do
             echo "::group::Publishing $pkg"
-            # Restore pyproject from git (idempotent across loop iterations).
-            git checkout pyproject.toml
-            sed -i "s/^name = .*/name = \"$pkg\"/" pyproject.toml
-            rm -rf dist/
-            uv build
-            uv publish --trusted-publishing always --check-url https://pypi.org/simple/
+            # Run the per-package steps in a subshell so set -e failures
+            # don't skip the ::endgroup:: marker — keeps Actions logs
+            # readable on publish failures.
+            rc=0
+            (
+              set -e
+              # Restore pyproject from git (idempotent across loop iterations).
+              # `--` separates pathspec from refspec; defensive against the
+              # (very unlikely) case of a ref named `pyproject.toml`.
+              git checkout -- pyproject.toml
+              sed -i "s/^name = .*/name = \"$pkg\"/" pyproject.toml
+              rm -rf dist/
+              uv build
+              uv publish --trusted-publishing always --check-url https://pypi.org/simple/
+            ) || rc=$?
             echo "::endgroup::"
+            [ $rc -eq 0 ] || exit $rc
           done
           # Final restore so any post-step inspections see the committed value.
-          git checkout pyproject.toml
+          git checkout -- pyproject.toml
