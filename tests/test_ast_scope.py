@@ -6,7 +6,7 @@ import ast
 
 from seer.lookup.ast_scope import Scope, find_enclosing, list_symbols
 
-SRC = '''class Foo:
+SRC = """class Foo:
     def method_a(self):
         pass
     async def method_b(self):
@@ -14,12 +14,13 @@ SRC = '''class Foo:
 
 def top_level():
     pass
-'''
+"""
 
 
 # ---------------------------------------------------------------------------
 # C1 — list_symbols
 # ---------------------------------------------------------------------------
+
 
 def test_list_symbols_basic():
     tree = ast.parse(SRC)
@@ -38,11 +39,11 @@ def test_list_symbols_empty_source():
 
 
 def test_list_symbols_nested_class():
-    src = '''class Outer:
+    src = """class Outer:
     class Inner:
         def method(self):
             pass
-'''
+"""
     tree = ast.parse(src)
     symbols = list_symbols(tree)
     names = [s.name for s in symbols]
@@ -54,6 +55,7 @@ def test_list_symbols_nested_class():
 # ---------------------------------------------------------------------------
 # C2 — find_enclosing
 # ---------------------------------------------------------------------------
+
 
 def test_find_enclosing_function_body():
     tree = ast.parse(SRC)
