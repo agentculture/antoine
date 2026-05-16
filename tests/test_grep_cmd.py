@@ -12,7 +12,6 @@ import pytest
 
 from seer.cli import main
 
-
 # ---------------------------------------------------------------------------
 # Helpers
 # ---------------------------------------------------------------------------
@@ -33,12 +32,12 @@ def _make_rg_match_event(file_path: str, line_number: int, text: str) -> str:
     return json.dumps(event)
 
 
-LIB_PY_SOURCE = '''\
+LIB_PY_SOURCE = """\
 _INIT_PY = "__init__.py"
 
 def helper():
     return _INIT_PY
-'''
+"""
 
 
 # ---------------------------------------------------------------------------

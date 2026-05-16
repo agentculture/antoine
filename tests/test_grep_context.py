@@ -13,12 +13,11 @@ import pytest
 from seer.cli._errors import EXIT_ENV_ERROR, EXIT_USER_ERROR, SeerError
 from seer.lookup.grep_context import grep_with_context
 
-
 # ---------------------------------------------------------------------------
 # Helpers
 # ---------------------------------------------------------------------------
 
-LIB_PY_SOURCE = '''\
+LIB_PY_SOURCE = """\
 _INIT_PY = "__init__.py"
 
 def helper():
@@ -27,7 +26,7 @@ def helper():
 class Container:
     def method(self):
         return _INIT_PY
-'''
+"""
 
 
 def _make_rg_match_event(file_path: str, line_number: int, text: str) -> str:

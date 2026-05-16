@@ -10,7 +10,7 @@ from __future__ import annotations
 
 import ast
 import json
-import subprocess
+import subprocess  # noqa: S404  # nosec B404
 from pathlib import Path
 from typing import Any
 
@@ -45,7 +45,7 @@ def grep_with_context(pattern: str, path: str | Path) -> dict[str, Any]:
         )
 
     try:
-        result = subprocess.run(
+        result = subprocess.run(  # noqa: S603,S607  # nosec B603 B607
             ["rg", "--json", pattern, str(p)],
             capture_output=True,
             text=True,
@@ -58,9 +58,7 @@ def grep_with_context(pattern: str, path: str | Path) -> dict[str, Any]:
             kind="env_error",
             message="`rg` not found on PATH",
             reason="seer grep requires ripgrep (rg) for match-finding.",
-            remediation=(
-                "install ripgrep (e.g. `apt install ripgrep` or `brew install ripgrep`)."
-            ),
+            remediation=("install ripgrep (e.g. `apt install ripgrep` or `brew install ripgrep`)."),
         )
     except subprocess.SubprocessError as exc:
         raise SeerError(
