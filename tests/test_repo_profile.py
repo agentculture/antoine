@@ -1,4 +1,4 @@
-"""Tests for seer.repo.profile (shallow path)."""
+"""Tests for antoine.repo.profile (shallow path)."""
 
 from __future__ import annotations
 
@@ -10,7 +10,7 @@ from pathlib import Path
 
 import pytest
 
-from seer.repo.profile import profile_deep, profile_shallow
+from antoine.repo.profile import profile_deep, profile_shallow
 
 
 def _mk_fixture_repo(root: Path) -> Path:
@@ -277,7 +277,7 @@ version = "0.1.0"
 requires-python = ">=3.11"
 
 [tool.pytest.ini_options]
-addopts = "-n auto --cov=seer"
+addopts = "-n auto --cov=antoine"
 
 [tool.coverage.report]
 fail_under = 80
@@ -286,7 +286,7 @@ fail_under = 80
     bt = p["build_test"]
     assert bt is not None
     assert bt["test_command"] == "pytest"
-    assert bt["test_addopts"] == "-n auto --cov=seer"
+    assert bt["test_addopts"] == "-n auto --cov=antoine"
     assert bt["coverage_fail_under"] == 80
     assert bt["python_requires"] == ">=3.11"
 

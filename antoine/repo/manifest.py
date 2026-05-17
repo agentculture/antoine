@@ -5,14 +5,14 @@ from __future__ import annotations
 import tomllib
 from pathlib import Path
 
-from seer.repo.errors import malformed_pyproject, manifest_not_found
+from antoine.repo.errors import malformed_pyproject, manifest_not_found
 
 
 def read_pyproject(repo: Path) -> dict[str, object]:
     """Parse ``repo/pyproject.toml`` into a stable dict.
 
     Returns a dict with keys ``name``, ``version``, ``entry_points``,
-    ``deps_runtime``, ``deps_dev``. Raises :class:`SeerError` (user_error)
+    ``deps_runtime``, ``deps_dev``. Raises :class:`AntoineError` (user_error)
     when the file is missing, or (env_error) when it cannot be parsed.
     """
     pyproject = repo / "pyproject.toml"

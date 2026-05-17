@@ -1,4 +1,4 @@
-"""Tests for seer.lookup.classify."""
+"""Tests for antoine.lookup.classify."""
 
 from __future__ import annotations
 
@@ -6,8 +6,8 @@ from pathlib import Path
 
 import pytest
 
-from seer.cli._errors import EXIT_ENV_ERROR, EXIT_USER_ERROR, SeerError
-from seer.lookup.classify import classify
+from antoine.cli._errors import EXIT_ENV_ERROR, EXIT_USER_ERROR, AntoineError
+from antoine.lookup.classify import classify
 
 
 def test_classify_empty_repo_returns_no_tags(tmp_path: Path) -> None:
@@ -22,19 +22,19 @@ def test_classify_empty_repo_returns_no_tags(tmp_path: Path) -> None:
 
 
 def test_classify_path_not_found_raises_seer_error(tmp_path: Path) -> None:
-    """Nonexistent path raises SeerError with EXIT_USER_ERROR code."""
+    """Nonexistent path raises AntoineError with EXIT_USER_ERROR code."""
     missing = tmp_path / "does-not-exist"
-    with pytest.raises(SeerError) as exc:
+    with pytest.raises(AntoineError) as exc:
         classify(missing)
     assert exc.value.code == EXIT_USER_ERROR
     assert "path not found" in exc.value.message
 
 
 def test_classify_path_is_file_raises_seer_error(tmp_path: Path) -> None:
-    """File path raises SeerError with EXIT_USER_ERROR code and 'directory' hint."""
+    """File path raises AntoineError with EXIT_USER_ERROR code and 'directory' hint."""
     f = tmp_path / "regular_file.txt"
     f.write_text("hi")
-    with pytest.raises(SeerError) as exc:
+    with pytest.raises(AntoineError) as exc:
         classify(f)
     assert exc.value.code == EXIT_USER_ERROR
     assert "directory" in exc.value.message
@@ -278,13 +278,13 @@ def test_classify_pyproject_non_utf8_raises_env_error(tmp_path: Path) -> None:
     """A pyproject.toml with non-UTF8 bytes raises a structured env_error.
 
     Without explicit UnicodeDecodeError handling, the dispatcher would wrap
-    this as a generic "unexpected" error — the contract is a clean SeerError.
+    this as a generic "unexpected" error — the contract is a clean AntoineError.
     """
     repo = tmp_path / "badpy"
     repo.mkdir()
     # 0xff 0xfe is not valid UTF-8; will trigger UnicodeDecodeError on read.
     (repo / "pyproject.toml").write_bytes(b'\xff\xfe[project]\nname = "x"\n')
-    with pytest.raises(SeerError) as exc:
+    with pytest.raises(AntoineError) as exc:
         classify(repo)
     assert exc.value.code == EXIT_ENV_ERROR
     assert "pyproject.toml" in exc.value.message

@@ -1,4 +1,4 @@
-"""``seer classify [path]`` — project-type classifier.
+"""``antoine classify [path]`` — project-type classifier.
 
 Returns a deterministic list of tags describing what kind of project the
 repo at *path* is (cli / library / dockerized / tested / packaged-pypi / …),
@@ -12,9 +12,9 @@ from __future__ import annotations
 import argparse
 from pathlib import Path
 
-from seer.cli._output import emit_result
-from seer.lookup.classify import classify
-from seer.lookup.render import render_classify_markdown
+from antoine.cli._output import emit_result
+from antoine.lookup.classify import classify
+from antoine.lookup.render import render_classify_markdown
 
 
 def cmd_classify(args: argparse.Namespace) -> int:

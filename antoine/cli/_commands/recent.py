@@ -1,4 +1,4 @@
-"""``seer recent [path] [-n N]`` — git commit log paired with AST symbol diffs.
+"""``antoine recent [path] [-n N]`` — git commit log paired with AST symbol diffs.
 
 Runs ``git log -n N`` in *path*, and for each commit pairs every changed file
 with a structural symbol-diff at the AST level (functions/classes added /
@@ -12,8 +12,8 @@ from __future__ import annotations
 import argparse
 from pathlib import Path
 
-from seer.cli._output import emit_result
-from seer.lookup.recent_outline import recent_with_outline, render_recent_markdown
+from antoine.cli._output import emit_result
+from antoine.lookup.recent_outline import recent_with_outline, render_recent_markdown
 
 
 def cmd_recent(args: argparse.Namespace) -> int:

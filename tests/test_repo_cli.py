@@ -1,4 +1,4 @@
-"""End-to-end tests for `python -m seer.repo <verb>`."""
+"""End-to-end tests for `python -m antoine.repo <verb>`."""
 
 from __future__ import annotations
 
@@ -20,7 +20,7 @@ def _mkrepo(root: Path, name: str, deps: list[str] | None = None) -> Path:
 
 def _run(*args: str, cwd: Path | None = None) -> subprocess.CompletedProcess[str]:
     return subprocess.run(  # noqa: S603
-        [sys.executable, "-m", "seer.repo", *args],
+        [sys.executable, "-m", "antoine.repo", *args],
         capture_output=True,
         text=True,
         check=False,
@@ -109,7 +109,7 @@ def test_no_args_prints_help() -> None:
 
 
 def test_malformed_config_json_is_wrapped_not_leaked(tmp_path: Path) -> None:
-    """Malformed config.json must surface as a structured SeerError, not a Python traceback."""
+    """Malformed config.json must surface as a structured AntoineError, not a Python traceback."""
     cfg_dir = tmp_path / ".claude" / "skills" / "repo-map"
     cfg_dir.mkdir(parents=True)
     (cfg_dir / "config.json").write_text("{not valid json")

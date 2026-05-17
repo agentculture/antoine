@@ -5,12 +5,12 @@ on:
     branches: [main]
     paths:
       - "pyproject.toml"
-      - "seer/**"
+      - "antoine/**"
   pull_request:
     branches: [main]
     paths:
       - "pyproject.toml"
-      - "seer/**"
+      - "antoine/**"
 
 jobs:
   test:
@@ -57,7 +57,7 @@ jobs:
       - name: Build and publish each distribution to TestPyPI
         run: |
           set -euo pipefail
-          for pkg in seer-cli kata-cli code-lens-cli; do
+          for pkg in antoine-cli kata-cli code-lens-cli; do
             echo "::group::TestPyPI publish $pkg"
             # Run the per-package steps in a subshell so set -e failures
             # don't skip the ::endgroup:: marker — keeps Actions logs
@@ -81,7 +81,7 @@ jobs:
       - name: Print install commands
         if: always()
         run: |
-          for pkg in seer-cli kata-cli code-lens-cli; do
+          for pkg in antoine-cli kata-cli code-lens-cli; do
             echo "::notice::Test with: uv tool install --index-url https://test.pypi.org/simple/ --index-strategy unsafe-best-match $pkg==${DEV_VERSION}"
           done
 
@@ -105,7 +105,7 @@ jobs:
       - name: Build and publish each distribution
         run: |
           set -euo pipefail
-          for pkg in seer-cli kata-cli code-lens-cli; do
+          for pkg in antoine-cli kata-cli code-lens-cli; do
             echo "::group::Publishing $pkg"
             # Run the per-package steps in a subshell so set -e failures
             # don't skip the ::endgroup:: marker — keeps Actions logs

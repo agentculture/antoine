@@ -1,4 +1,4 @@
-"""Tests for the ``seer grep`` CLI verb — D2 test suite."""
+"""Tests for the ``antoine grep`` CLI verb — D2 test suite."""
 
 from __future__ import annotations
 
@@ -10,7 +10,7 @@ from typing import Any
 
 import pytest
 
-from seer.cli import main
+from antoine.cli import main
 
 # ---------------------------------------------------------------------------
 # Helpers

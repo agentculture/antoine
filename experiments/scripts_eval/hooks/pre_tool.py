@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """PreToolUse hook: stamps Agent dispatches into the run's raw/ JSONL.
 
-No-op when SEER_EVAL_RUN_ID is unset, so day-to-day seer-cli sessions
+No-op when ANTOINE_EVAL_RUN_ID is unset, so day-to-day antoine sessions
 are unaffected. Each Agent dispatch becomes one JSONL file under
 results/<run_id>/raw/<subagent_id>.jsonl with a single 'pre_tool' line;
 PostToolUse and SubagentStop append to the same file.
@@ -39,8 +39,8 @@ def run(payload: dict, now: Callable[[], float] = time.time) -> int:
     arm = _io.eval_arm()
     if arm is None:
         print(
-            "scripts-eval pre_tool: SEER_EVAL_RUN_ID is set but SEER_EVAL_ARM is not; "
-            "skipping (export SEER_EVAL_ARM=A or C)",
+            "scripts-eval pre_tool: ANTOINE_EVAL_RUN_ID is set but ANTOINE_EVAL_ARM is not; "
+            "skipping (export ANTOINE_EVAL_ARM=A or C)",
             file=sys.stderr,
         )
         return 0

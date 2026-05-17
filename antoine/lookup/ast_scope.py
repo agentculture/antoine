@@ -1,4 +1,4 @@
-"""seer.lookup.ast_scope — AST-based scope resolver (stdlib ast only).
+"""antoine.lookup.ast_scope — AST-based scope resolver (stdlib ast only).
 
 Provides:
   Scope          — frozen dataclass describing a named code scope.

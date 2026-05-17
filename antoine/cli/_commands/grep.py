@@ -1,4 +1,4 @@
-"""``seer grep <pattern> [path]`` — AST-scope-augmented ripgrep search.
+"""``antoine grep <pattern> [path]`` — AST-scope-augmented ripgrep search.
 
 Runs ``rg --json <pattern> <path>`` and pairs every match with the enclosing
 Python function or class name via the AST scope resolver.
@@ -11,8 +11,8 @@ from __future__ import annotations
 import argparse
 from pathlib import Path
 
-from seer.cli._output import emit_result
-from seer.lookup.grep_context import grep_with_context, render_grep_markdown
+from antoine.cli._output import emit_result
+from antoine.lookup.grep_context import grep_with_context, render_grep_markdown
 
 
 def cmd_grep(args: argparse.Namespace) -> int:

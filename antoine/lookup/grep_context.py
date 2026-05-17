@@ -1,4 +1,4 @@
-"""seer.lookup.grep_context — ripgrep-backed search with AST scope annotation.
+"""antoine.lookup.grep_context — ripgrep-backed search with AST scope annotation.
 
 Provides:
   grep_with_context  — run ``rg --json`` and pair every match with the
@@ -14,14 +14,14 @@ import subprocess  # noqa: S404  # nosec B404
 from pathlib import Path
 from typing import Any
 
-from seer.cli._errors import EXIT_ENV_ERROR, EXIT_USER_ERROR, SeerError
-from seer.lookup.ast_scope import find_enclosing
+from antoine.cli._errors import EXIT_ENV_ERROR, EXIT_USER_ERROR, AntoineError
+from antoine.lookup.ast_scope import find_enclosing
 
 __all__ = ["grep_with_context", "render_grep_markdown"]
 
 
 def _run_rg(pattern: str, path: Path) -> "subprocess.CompletedProcess[str]":
-    """Run ``rg --json``; raise :class:`SeerError` on missing binary or exit code 2+."""
+    """Run ``rg --json``; raise :class:`AntoineError` on missing binary or exit code 2+."""
     try:
         result = subprocess.run(  # noqa: S603,S607  # nosec B603 B607
             ["rg", "--json", pattern, str(path)],
@@ -31,15 +31,15 @@ def _run_rg(pattern: str, path: Path) -> "subprocess.CompletedProcess[str]":
             timeout=30,
         )
     except FileNotFoundError:
-        raise SeerError(
+        raise AntoineError(
             code=EXIT_ENV_ERROR,
             kind="env_error",
             message="`rg` not found on PATH",
-            reason="seer grep requires ripgrep (rg) for match-finding.",
+            reason="antoine grep requires ripgrep (rg) for match-finding.",
             remediation=("install ripgrep (e.g. `apt install ripgrep` or `brew install ripgrep`)."),
         )
     except subprocess.SubprocessError as exc:
-        raise SeerError(
+        raise AntoineError(
             code=EXIT_ENV_ERROR,
             kind="env_error",
             message=f"rg subprocess failed: {exc}",
@@ -48,7 +48,7 @@ def _run_rg(pattern: str, path: Path) -> "subprocess.CompletedProcess[str]":
     # rg exits 1 when there are no matches — that is not an error.
     if result.returncode >= 2:
         stderr_snippet = result.stderr.strip()[:200]
-        raise SeerError(
+        raise AntoineError(
             code=EXIT_ENV_ERROR,
             kind="env_error",
             message=f"rg exited with code {result.returncode}",
@@ -112,13 +112,13 @@ def grep_with_context(pattern: str, path: str | Path) -> dict[str, Any]:
     for Python files (``None`` for module-level lines and all non-Python files).
 
     Raises:
-        SeerError(EXIT_USER_ERROR): *path* does not exist.
-        SeerError(EXIT_ENV_ERROR):  ``rg`` is not on PATH, or rg exits with
+        AntoineError(EXIT_USER_ERROR): *path* does not exist.
+        AntoineError(EXIT_ENV_ERROR):  ``rg`` is not on PATH, or rg exits with
                                     code 2+ (real error, not "no matches").
     """
     p = Path(path)
     if not p.exists():
-        raise SeerError(
+        raise AntoineError(
             code=EXIT_USER_ERROR,
             kind="user_error",
             message=f"path not found: {path}",

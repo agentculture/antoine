@@ -1,7 +1,7 @@
 """stdout / stderr helpers with a strict split.
 
 Rule: **results go to stdout, diagnostics and errors go to stderr.** Agents
-parsing seer output can rely on this invariant. JSON mode routes structured
+parsing antoine output can rely on this invariant. JSON mode routes structured
 payloads to the same streams — it never mixes them.
 """
 
@@ -11,7 +11,7 @@ import json
 import sys
 from typing import Any, TextIO
 
-from seer.cli._errors import SeerError
+from antoine.cli._errors import AntoineError
 
 
 def emit_result(data: Any, *, json_mode: bool, stream: TextIO | None = None) -> None:
@@ -27,8 +27,8 @@ def emit_result(data: Any, *, json_mode: bool, stream: TextIO | None = None) -> 
         s.write("\n")
 
 
-def emit_error(err: SeerError, *, json_mode: bool, stream: TextIO | None = None) -> None:
-    """Write a :class:`SeerError` to stderr (text or JSON)."""
+def emit_error(err: AntoineError, *, json_mode: bool, stream: TextIO | None = None) -> None:
+    """Write a :class:`AntoineError` to stderr (text or JSON)."""
     s = stream if stream is not None else sys.stderr
     if json_mode:
         json.dump(err.to_dict(), s, ensure_ascii=False)

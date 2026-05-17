@@ -11,7 +11,7 @@ def _payload(tool_name="Bash", session_id="sess-abc", input_=None):
     return {
         "session_id": session_id,
         "transcript_path": "/tmp/transcript.jsonl",
-        "cwd": "/home/spark/git/seer-cli",
+        "cwd": "/home/spark/git/antoine",
         "hook_event_name": "PostToolUse",
         "tool_name": tool_name,
         "tool_input": input_ or {"command": "ls"},
@@ -39,15 +39,15 @@ def _seed_pre(tmp_path, sid, session_id="sess-abc"):
 
 
 def test_no_op_when_run_id_unset(monkeypatch, tmp_path):
-    monkeypatch.delenv("SEER_EVAL_RUN_ID", raising=False)
+    monkeypatch.delenv("ANTOINE_EVAL_RUN_ID", raising=False)
     monkeypatch.setattr(post_tool._io, "REPO_ROOT", tmp_path)
     rc = post_tool.run(_payload(), now=lambda: 1700000010.0)
     assert rc == 0
 
 
 def test_appends_to_open_subagent_jsonl(monkeypatch, tmp_path):
-    monkeypatch.setenv("SEER_EVAL_RUN_ID", "r1")
-    monkeypatch.setenv("SEER_EVAL_ARM", "C")
+    monkeypatch.setenv("ANTOINE_EVAL_RUN_ID", "r1")
+    monkeypatch.setenv("ANTOINE_EVAL_ARM", "C")
     monkeypatch.setattr(post_tool._io, "REPO_ROOT", tmp_path)
     sid = "r1-C-deadbeef"
     fp = _seed_pre(tmp_path, sid)
@@ -67,8 +67,8 @@ def test_appends_to_open_subagent_jsonl(monkeypatch, tmp_path):
 
 
 def test_no_open_subagent_means_no_op(monkeypatch, tmp_path):
-    monkeypatch.setenv("SEER_EVAL_RUN_ID", "r1")
-    monkeypatch.setenv("SEER_EVAL_ARM", "A")
+    monkeypatch.setenv("ANTOINE_EVAL_RUN_ID", "r1")
+    monkeypatch.setenv("ANTOINE_EVAL_ARM", "A")
     monkeypatch.setattr(post_tool._io, "REPO_ROOT", tmp_path)
     rc = post_tool.run(_payload(), now=lambda: 1700000010.0)
     assert rc == 0  # silently skip; no raw dir, no file
@@ -79,8 +79,8 @@ def test_no_op_when_subagent_already_closed(monkeypatch, tmp_path):
     must not re-append. Otherwise a later operator tool call in the same
     Claude Code session leaks into the completed subagent's log and
     contaminates the eventual tools_used aggregation."""
-    monkeypatch.setenv("SEER_EVAL_RUN_ID", "r1")
-    monkeypatch.setenv("SEER_EVAL_ARM", "C")
+    monkeypatch.setenv("ANTOINE_EVAL_RUN_ID", "r1")
+    monkeypatch.setenv("ANTOINE_EVAL_ARM", "C")
     monkeypatch.setattr(post_tool._io, "REPO_ROOT", tmp_path)
     sid = "r1-C-cafef00d"
     fp = _seed_pre(tmp_path, sid)

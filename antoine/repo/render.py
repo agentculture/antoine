@@ -1,11 +1,11 @@
-"""Markdown emitters for seer.repo.
+"""Markdown emitters for antoine.repo.
 
 Each ``render_*_markdown`` function takes a plain dict (the shape produced
-by :mod:`seer.repo.profile`, and later :mod:`seer.repo.connections` /
-:mod:`seer.repo.graph`) and returns a string.
+by :mod:`antoine.repo.profile`, and later :mod:`antoine.repo.connections` /
+:mod:`antoine.repo.graph`) and returns a string.
 
 The matching JSON envelopes are produced by callers via
-:func:`seer.cli._output.emit_result` with ``json_mode=True``; render.py
+:func:`antoine.cli._output.emit_result` with ``json_mode=True``; render.py
 does not duplicate that.
 """
 
@@ -13,7 +13,7 @@ from __future__ import annotations
 
 from typing import Any
 
-from seer.cli._errors import EXIT_ENV_ERROR, EXIT_INTERNAL, EXIT_USER_ERROR, SeerError
+from antoine.cli._errors import EXIT_ENV_ERROR, EXIT_INTERNAL, EXIT_USER_ERROR, AntoineError
 
 _KIND_LABEL = {
     EXIT_USER_ERROR: "user error",
@@ -305,8 +305,8 @@ def render_profile_markdown(profile: dict[str, Any]) -> str:
     return "\n".join(lines) + "\n"
 
 
-def render_error_markdown(err: SeerError) -> str:
-    """Render a :class:`SeerError` as a markdown error block (for stderr)."""
+def render_error_markdown(err: AntoineError) -> str:
+    """Render a :class:`AntoineError` as a markdown error block (for stderr)."""
     label = _KIND_LABEL.get(err.code, "error")
     lines: list[str] = []
     lines.append(f"**Error:** {err.message}")

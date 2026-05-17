@@ -1,10 +1,10 @@
-"""Tests for seer.repo.detect."""
+"""Tests for antoine.repo.detect."""
 
 from __future__ import annotations
 
 from pathlib import Path
 
-from seer.repo.detect import find_repos, is_repo, resolve_name
+from antoine.repo.detect import find_repos, is_repo, resolve_name
 
 
 def _mkrepo(

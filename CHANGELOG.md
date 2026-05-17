@@ -5,6 +5,18 @@ All notable changes to this project will be documented in this file.
 Format follows [Keep a Changelog](https://keepachangelog.com/). This project
 adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.9.1] - 2026-05-17
+
+### Changed
+
+- PyPI distribution renamed from `antoine` to `antoine-cli` to avoid name collision and stay consistent with the `kata-cli` / `code-lens-cli` alt-publish naming convention. The Python module (`antoine`) and console script (`antoine`) are unchanged; only the wheel-distribution name moves. `_resolve_version()` fallback list and `.github/workflows/publish.yml` publish loop updated to match.
+
+## [0.9.0] - 2026-05-17
+
+### Changed
+
+- **Repository rename: `seer-cli` → `antoine`.** GitHub remote moved to `agentculture/antoine`; primary PyPI distribution renamed from `seer-cli` to `antoine`; `kata-cli` and `code-lens-cli` alt-publishes preserved. Python module renamed `seer/` → `antoine/`; primary console script renamed `seer` → `antoine` (the `kata` alias is retained). All imports, error classes (`SeerError` → `AntoineError`, `_SeerArgumentParser` → `_AntoineArgumentParser`), env vars (`SEER_EVAL_*` → `ANTOINE_EVAL_*`), Sonar project key (`agentculture_seer-cli` → `agentculture_antoine`), `culture.yaml` agent suffix, vendored skill bodies, and the scripts-eval harness's banned-pattern detection updated accordingly. Historical `CHANGELOG.md` entries, `docs/eval-rounds/`, and dated `docs/superpowers/{specs,plans}/` files are intentionally left referring to `seer` — those describe past state.
+
 ## [0.8.0] - 2026-05-16
 
 ### Added

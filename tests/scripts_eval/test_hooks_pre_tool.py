@@ -11,7 +11,7 @@ def _payload(tool_name="Agent", prompt="explain X"):
     return {
         "session_id": "sess-abc",
         "transcript_path": "/tmp/transcript.jsonl",
-        "cwd": "/home/spark/git/seer-cli",
+        "cwd": "/home/spark/git/antoine",
         "hook_event_name": "PreToolUse",
         "tool_name": tool_name,
         "tool_input": {
@@ -23,7 +23,7 @@ def _payload(tool_name="Agent", prompt="explain X"):
 
 
 def test_no_op_when_run_id_unset(monkeypatch, tmp_path):
-    monkeypatch.delenv("SEER_EVAL_RUN_ID", raising=False)
+    monkeypatch.delenv("ANTOINE_EVAL_RUN_ID", raising=False)
     monkeypatch.setattr(pre_tool._io, "REPO_ROOT", tmp_path)
     rc = pre_tool.run(_payload(), now=lambda: 1700000000.0)
     assert rc == 0
@@ -32,8 +32,8 @@ def test_no_op_when_run_id_unset(monkeypatch, tmp_path):
 
 
 def test_no_op_when_tool_not_agent(monkeypatch, tmp_path):
-    monkeypatch.setenv("SEER_EVAL_RUN_ID", "r1")
-    monkeypatch.setenv("SEER_EVAL_ARM", "A")
+    monkeypatch.setenv("ANTOINE_EVAL_RUN_ID", "r1")
+    monkeypatch.setenv("ANTOINE_EVAL_ARM", "A")
     monkeypatch.setattr(pre_tool._io, "REPO_ROOT", tmp_path)
     rc = pre_tool.run(_payload(tool_name="Bash"), now=lambda: 1700000000.0)
     assert rc == 0
@@ -41,8 +41,8 @@ def test_no_op_when_tool_not_agent(monkeypatch, tmp_path):
 
 
 def test_writes_jsonl_for_agent_dispatch(monkeypatch, tmp_path):
-    monkeypatch.setenv("SEER_EVAL_RUN_ID", "r1")
-    monkeypatch.setenv("SEER_EVAL_ARM", "C")
+    monkeypatch.setenv("ANTOINE_EVAL_RUN_ID", "r1")
+    monkeypatch.setenv("ANTOINE_EVAL_ARM", "C")
     monkeypatch.setattr(pre_tool._io, "REPO_ROOT", tmp_path)
 
     rc = pre_tool.run(_payload(prompt="overview the culture repo"), now=lambda: 1700000000.0)
@@ -60,13 +60,13 @@ def test_writes_jsonl_for_agent_dispatch(monkeypatch, tmp_path):
 
 
 def test_warns_and_skips_when_arm_unset(monkeypatch, tmp_path, capsys):
-    monkeypatch.setenv("SEER_EVAL_RUN_ID", "r1")
-    monkeypatch.delenv("SEER_EVAL_ARM", raising=False)
+    monkeypatch.setenv("ANTOINE_EVAL_RUN_ID", "r1")
+    monkeypatch.delenv("ANTOINE_EVAL_ARM", raising=False)
     monkeypatch.setattr(pre_tool._io, "REPO_ROOT", tmp_path)
     rc = pre_tool.run(_payload(), now=lambda: 1700000000.0)
     assert rc == 0
     captured = capsys.readouterr()
-    assert "SEER_EVAL_ARM" in captured.err
+    assert "ANTOINE_EVAL_ARM" in captured.err
     assert not (tmp_path / "experiments" / "scripts_eval" / "results").exists()
 
 
@@ -78,8 +78,8 @@ def test_pre_tool_skips_scripts_eval_judge_dispatch(monkeypatch, tmp_path):
     Contract: any Agent dispatch whose tool_input.description starts with
     'scripts_eval judge:' is skipped by the pre_tool hook.
     """
-    monkeypatch.setenv("SEER_EVAL_RUN_ID", "r1")
-    monkeypatch.setenv("SEER_EVAL_ARM", "C")
+    monkeypatch.setenv("ANTOINE_EVAL_RUN_ID", "r1")
+    monkeypatch.setenv("ANTOINE_EVAL_ARM", "C")
     monkeypatch.setattr(pre_tool._io, "REPO_ROOT", tmp_path)
 
     payload = _payload(prompt="judge prompt body")

@@ -22,8 +22,8 @@ from pathlib import Path
 
 import yaml
 
-from seer.repo.detect import resolve_name
-from seer.repo.manifest import read_pyproject
+from antoine.repo.detect import resolve_name
+from antoine.repo.manifest import read_pyproject
 
 _WORKFLOW_NAME_RE = re.compile(r"^name:\s*(.+?)\s*$", re.MULTILINE)
 _REMOTE_RE = re.compile(r"^(?:git@|https?://)([^:/]+)[:/](.+?)(?:\.git)?/?$")

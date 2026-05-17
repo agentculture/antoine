@@ -96,5 +96,5 @@ One call each, no re-grepping.
 
 ## Engine
 
-`seer/lookup/` — `python -m seer <verb> …`. Each shell wrapper is a
+`antoine/lookup/` — `python -m antoine <verb> …`. Each shell wrapper is a
 one-liner; the agent-facing contract is the verb and its flags.

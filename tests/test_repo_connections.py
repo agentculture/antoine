@@ -1,4 +1,4 @@
-"""Tests for seer.repo.connections."""
+"""Tests for antoine.repo.connections."""
 
 from __future__ import annotations
 
@@ -6,8 +6,8 @@ from pathlib import Path
 
 import pytest
 
-from seer.cli._errors import SeerError
-from seer.repo.connections import walk
+from antoine.cli._errors import AntoineError
+from antoine.repo.connections import walk
 
 
 def _mkrepo(
@@ -103,11 +103,11 @@ def test_walk_strict_raises_on_per_node_error(tmp_path: Path) -> None:
     beta = tmp_path / "beta"
     beta.mkdir()
     (beta / "pyproject.toml").write_text('[project\nname="beta"')  # malformed
-    with pytest.raises(SeerError):
+    with pytest.raises(AntoineError):
         walk(seed=a, roots=[tmp_path], depth=1, with_profile=True, strict=True)
 
 
 def test_walk_invalid_depth_raises(tmp_path: Path) -> None:
     a = _mkrepo(tmp_path, "alpha")
-    with pytest.raises(SeerError):
+    with pytest.raises(AntoineError):
         walk(seed=a, roots=[tmp_path], depth="foo")

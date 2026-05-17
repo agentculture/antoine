@@ -48,9 +48,9 @@ A new contributor pointing this at their own repos:
 1. `uv sync --group experiments`
 2. Edit `corpus.yaml`: replace `targets:` with their own repos and
    each question's `expected_evidence` with their own facts.
-3. Pick a run id, export `SEER_EVAL_RUN_ID` and `SEER_EVAL_ARM`,
+3. Pick a run id, export `ANTOINE_EVAL_RUN_ID` and `ANTOINE_EVAL_ARM`,
    follow `RUNBOOK.md`.
 4. Read `results/<run_id>/REPORT.md`.
 
-The hooks no-op without the env vars, so day-to-day seer-cli work in
+The hooks no-op without the env vars, so day-to-day antoine work in
 the same checkout is unaffected.

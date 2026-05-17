@@ -30,7 +30,7 @@ jobs:
 
       - run: uv sync
 
-      - run: uv run pytest -n auto --cov=seer --cov-report=xml:coverage.xml --cov-report=term -v
+      - run: uv run pytest -n auto --cov=antoine --cov-report=xml:coverage.xml --cov-report=term -v
 
       - name: SonarCloud Scan
         if: env.SONAR_TOKEN != ''
@@ -56,16 +56,16 @@ jobs:
       - run: uv sync
 
       - name: black --check
-        run: uv run black --check seer tests
+        run: uv run black --check antoine tests
 
       - name: isort --check
-        run: uv run isort --check-only seer tests
+        run: uv run isort --check-only antoine tests
 
       - name: flake8
-        run: uv run flake8 --config=.flake8 seer/ tests/
+        run: uv run flake8 --config=.flake8 antoine/ tests/
 
       - name: bandit
-        run: uv run bandit -c pyproject.toml -r seer
+        run: uv run bandit -c pyproject.toml -r antoine
 
       - name: markdownlint-cli2
         run: |

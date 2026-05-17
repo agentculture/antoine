@@ -1,4 +1,4 @@
-"""Tests for seer.lookup.recent_outline — E1 test suite."""
+"""Tests for antoine.lookup.recent_outline — E1 test suite."""
 
 from __future__ import annotations
 
@@ -7,8 +7,8 @@ from pathlib import Path
 
 import pytest
 
-from seer.cli._errors import EXIT_USER_ERROR, SeerError
-from seer.lookup.recent_outline import recent_with_outline, render_recent_markdown
+from antoine.cli._errors import EXIT_USER_ERROR, AntoineError
+from antoine.lookup.recent_outline import recent_with_outline, render_recent_markdown
 
 # ---------------------------------------------------------------------------
 # Helpers
@@ -137,26 +137,26 @@ def test_recent_outline_empty_repo(tmp_path: Path) -> None:
 
 
 # ---------------------------------------------------------------------------
-# E1-d: n=0 or negative → SeerError(EXIT_USER_ERROR)
+# E1-d: n=0 or negative → AntoineError(EXIT_USER_ERROR)
 # ---------------------------------------------------------------------------
 
 
 @pytest.mark.parametrize("bad_n", [0, -1, -100])
 def test_recent_outline_bad_n(tmp_path: Path, bad_n: int) -> None:
     _make_repo(tmp_path)
-    with pytest.raises(SeerError) as exc_info:
+    with pytest.raises(AntoineError) as exc_info:
         recent_with_outline(n=bad_n, path=tmp_path)
     assert exc_info.value.code == EXIT_USER_ERROR
 
 
 # ---------------------------------------------------------------------------
-# E1-e: path is not a directory → SeerError(EXIT_USER_ERROR)
+# E1-e: path is not a directory → AntoineError(EXIT_USER_ERROR)
 # ---------------------------------------------------------------------------
 
 
 def test_recent_outline_bad_path(tmp_path: Path) -> None:
     non_dir = tmp_path / "does_not_exist"
-    with pytest.raises(SeerError) as exc_info:
+    with pytest.raises(AntoineError) as exc_info:
         recent_with_outline(n=5, path=non_dir)
     assert exc_info.value.code == EXIT_USER_ERROR
 
@@ -164,7 +164,7 @@ def test_recent_outline_bad_path(tmp_path: Path) -> None:
 def test_recent_outline_path_is_file(tmp_path: Path) -> None:
     f = tmp_path / "file.txt"
     f.write_text("hello\n")
-    with pytest.raises(SeerError) as exc_info:
+    with pytest.raises(AntoineError) as exc_info:
         recent_with_outline(n=5, path=f)
     assert exc_info.value.code == EXIT_USER_ERROR
 
@@ -238,8 +238,8 @@ def test_render_recent_markdown_empty() -> None:
 
 
 def test_recent_outline_rejects_non_git_path(tmp_path: Path) -> None:
-    """A plain directory (no git init) raises SeerError with EXIT_USER_ERROR."""
-    with pytest.raises(SeerError) as exc_info:
+    """A plain directory (no git init) raises AntoineError with EXIT_USER_ERROR."""
+    with pytest.raises(AntoineError) as exc_info:
         recent_with_outline(n=5, path=tmp_path)
     assert exc_info.value.code == EXIT_USER_ERROR
 
@@ -252,7 +252,7 @@ def test_recent_outline_empty_repo_returns_empty_list(tmp_path: Path) -> None:
 
 
 def test_recent_outline_fatal_error_surfaces(tmp_path: Path) -> None:
-    """A corrupt .git (file instead of directory) causes SeerError(EXIT_USER_ERROR).
+    """A corrupt .git (file instead of directory) causes AntoineError(EXIT_USER_ERROR).
 
     git rev-parse --is-inside-work-tree will reject a repo with a .git *file*
     that points nowhere (unlike a real worktree .git file), so the guard raises
@@ -261,6 +261,6 @@ def test_recent_outline_fatal_error_surfaces(tmp_path: Path) -> None:
     # Create .git as a plain file — git treats this as "not a repo".
     dot_git = tmp_path / ".git"
     dot_git.write_text("not a real git dir\n", encoding="utf-8")
-    with pytest.raises(SeerError) as exc_info:
+    with pytest.raises(AntoineError) as exc_info:
         recent_with_outline(n=5, path=tmp_path)
     assert exc_info.value.code == EXIT_USER_ERROR

@@ -10,28 +10,28 @@ from experiments.scripts_eval import _io
 
 
 def test_eval_run_id_returns_value_when_set(monkeypatch):
-    monkeypatch.setenv("SEER_EVAL_RUN_ID", "2026-05-15-run-01")
+    monkeypatch.setenv("ANTOINE_EVAL_RUN_ID", "2026-05-15-run-01")
     assert _io.eval_run_id() == "2026-05-15-run-01"
 
 
 def test_eval_run_id_returns_none_when_unset(monkeypatch):
-    monkeypatch.delenv("SEER_EVAL_RUN_ID", raising=False)
+    monkeypatch.delenv("ANTOINE_EVAL_RUN_ID", raising=False)
     assert _io.eval_run_id() is None
 
 
 def test_eval_arm_returns_value_when_set(monkeypatch):
-    monkeypatch.setenv("SEER_EVAL_ARM", "C")
+    monkeypatch.setenv("ANTOINE_EVAL_ARM", "C")
     assert _io.eval_arm() == "C"
 
 
 def test_eval_arm_rejects_invalid(monkeypatch):
-    monkeypatch.setenv("SEER_EVAL_ARM", "Q")
-    with pytest.raises(ValueError, match=r"SEER_EVAL_ARM must be one of \('A', 'B', 'C'\)"):
+    monkeypatch.setenv("ANTOINE_EVAL_ARM", "Q")
+    with pytest.raises(ValueError, match=r"ANTOINE_EVAL_ARM must be one of \('A', 'B', 'C'\)"):
         _io.eval_arm()
 
 
 def test_eval_arm_accepts_b(monkeypatch):
-    monkeypatch.setenv("SEER_EVAL_ARM", "B")
+    monkeypatch.setenv("ANTOINE_EVAL_ARM", "B")
     assert _io.eval_arm() == "B"
 
 

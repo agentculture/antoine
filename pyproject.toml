@@ -1,7 +1,7 @@
 [project]
-name = "seer-cli"
-version = "0.8.0"
-description = "seer — codebase lookup and indexing for agent skills (greenfield AgentCulture sibling)."
+name = "antoine-cli"
+version = "0.9.1"
+description = "antoine — codebase lookup and indexing for agent skills (greenfield AgentCulture sibling)."
 readme = "README.md"
 license = "MIT"
 requires-python = ">=3.12"
@@ -16,19 +16,19 @@ classifiers = [
 dependencies = ["pyyaml>=6.0"]
 
 [project.urls]
-Homepage = "https://github.com/agentculture/seer-cli"
-Issues = "https://github.com/agentculture/seer-cli/issues"
+Homepage = "https://github.com/agentculture/antoine"
+Issues = "https://github.com/agentculture/antoine/issues"
 
 [project.scripts]
-seer = "seer.cli:main"
-kata = "seer.cli:main"
+antoine = "antoine.cli:main"
+kata = "antoine.cli:main"
 
 [build-system]
 requires = ["hatchling"]
 build-backend = "hatchling.build"
 
 [tool.hatch.build.targets.wheel]
-packages = ["seer"]
+packages = ["antoine"]
 
 [dependency-groups]
 dev = [
@@ -51,7 +51,7 @@ experiments = [
 ]
 
 [tool.coverage.run]
-source = ["seer"]
+source = ["antoine"]
 # parallel + concurrency are required for pytest-xdist (`-n auto`) to
 # produce per-worker `.coverage.*` files that coverage merges into a
 # single `.coverage`. Without these, only the master process's slice
@@ -61,7 +61,7 @@ source = ["seer"]
 parallel = true
 concurrency = ["thread", "multiprocessing"]
 sigterm = true
-omit = ["seer/__pycache__/*"]
+omit = ["antoine/__pycache__/*"]
 
 [tool.coverage.report]
 fail_under = 70
@@ -75,7 +75,7 @@ exclude_lines = [
 [tool.isort]
 profile = "black"
 line_length = 100
-known_first_party = ["seer"]
+known_first_party = ["antoine"]
 
 [tool.black]
 line-length = 100

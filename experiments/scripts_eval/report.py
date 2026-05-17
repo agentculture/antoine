@@ -12,14 +12,14 @@ VIOLATION_PATTERNS = (
     "scripts/profile.sh",
     "scripts/connections.sh",
     "scripts/graph.sh",
-    "seer.repo",
-    "seer/repo",
-    "python -m seer",
+    "antoine.repo",
+    "antoine/repo",
+    "python -m antoine",
     "skills/code-lookup/scripts/",
-    "seer.lookup",
-    "seer grep",
-    "seer recent",
-    "seer classify",
+    "antoine.lookup",
+    "antoine grep",
+    "antoine recent",
+    "antoine classify",
 )
 
 

@@ -1,4 +1,4 @@
-"""Tests for the ``seer recent`` CLI verb — E2 test suite."""
+"""Tests for the ``antoine recent`` CLI verb — E2 test suite."""
 
 from __future__ import annotations
 
@@ -8,7 +8,7 @@ from pathlib import Path
 
 import pytest
 
-from seer.cli import main
+from antoine.cli import main
 
 # ---------------------------------------------------------------------------
 # Helpers

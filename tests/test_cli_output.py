@@ -5,8 +5,8 @@ from __future__ import annotations
 import io
 import json
 
-from seer.cli._errors import SeerError
-from seer.cli._output import emit_diagnostic, emit_error, emit_result
+from antoine.cli._errors import AntoineError
+from antoine.cli._output import emit_diagnostic, emit_error, emit_result
 
 
 def test_emit_result_text_adds_trailing_newline() -> None:
@@ -24,7 +24,7 @@ def test_emit_result_json() -> None:
 def test_emit_error_text_with_remediation() -> None:
     buf = io.StringIO()
     emit_error(
-        SeerError(code=1, message="bad", remediation="fix it"),
+        AntoineError(code=1, message="bad", remediation="fix it"),
         json_mode=False,
         stream=buf,
     )
@@ -33,14 +33,14 @@ def test_emit_error_text_with_remediation() -> None:
 
 def test_emit_error_text_without_remediation() -> None:
     buf = io.StringIO()
-    emit_error(SeerError(code=1, message="bad"), json_mode=False, stream=buf)
+    emit_error(AntoineError(code=1, message="bad"), json_mode=False, stream=buf)
     assert buf.getvalue() == "error: bad\n"
 
 
 def test_emit_error_json() -> None:
     buf = io.StringIO()
     emit_error(
-        SeerError(code=2, message="bad", remediation="fix"),
+        AntoineError(code=2, message="bad", remediation="fix"),
         json_mode=True,
         stream=buf,
     )
@@ -60,7 +60,7 @@ def test_emit_diagnostic_adds_newline() -> None:
 def test_emit_error_text_with_reason_and_remediation() -> None:
     buf = io.StringIO()
     emit_error(
-        SeerError(
+        AntoineError(
             code=1,
             message="bad",
             reason="no manifest found",
@@ -75,7 +75,7 @@ def test_emit_error_text_with_reason_and_remediation() -> None:
 def test_emit_error_text_with_reason_only() -> None:
     buf = io.StringIO()
     emit_error(
-        SeerError(code=1, message="bad", reason="no manifest found"),
+        AntoineError(code=1, message="bad", reason="no manifest found"),
         json_mode=False,
         stream=buf,
     )
@@ -85,7 +85,7 @@ def test_emit_error_text_with_reason_only() -> None:
 def test_emit_error_json_with_reason_and_kind() -> None:
     buf = io.StringIO()
     emit_error(
-        SeerError(
+        AntoineError(
             code=1,
             kind="user_error",
             message="bad",

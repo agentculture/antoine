@@ -22,14 +22,14 @@ Round 1 uses two distinct Claude Code sessions, one per arm:
 
 | Arm | Skill state | Operator system prompt |
 | --- | --- | --- |
-| A   | `repo-map` skill **not loaded** in this session | "Dispatch only `Explore` subagents. In each subagent prompt, forbid the `repo-map` skill and the `seer.repo` / `scripts/*.sh` paths." |
+| A   | `repo-map` skill **not loaded** in this session | "Dispatch only `Explore` subagents. In each subagent prompt, forbid the `repo-map` skill and the `antoine.repo` / `scripts/*.sh` paths." |
 | C   | `repo-map` skill **loaded** in this session | "Dispatch only `Explore` subagents. Each may use the `repo-map` skill and its scripts at its discretion." |
 
 Both sessions export the same env vars before launching:
 
 ```bash
-export SEER_EVAL_RUN_ID=2026-05-15-run-01
-export SEER_EVAL_ARM=A   # or C in the other session
+export ANTOINE_EVAL_RUN_ID=2026-05-15-run-01
+export ANTOINE_EVAL_ARM=A   # or C in the other session
 ```
 
 The hooks pick up these env vars; without them, hooks no-op.
@@ -39,7 +39,7 @@ manifest:
 
 ```bash
 uv run --group experiments python -m experiments.scripts_eval.manifest init \
-    --run $SEER_EVAL_RUN_ID
+    --run $ANTOINE_EVAL_RUN_ID
 ```
 
 ## Per-cell loop (within an arm session)
@@ -68,12 +68,12 @@ For each `(repo_id or workspace, question_id, trial)` row in
 
    ```bash
    uv run --group experiments python -m experiments.scripts_eval.capture \
-       --run $SEER_EVAL_RUN_ID --repo <repo_id_or_blank> \
+       --run $ANTOINE_EVAL_RUN_ID --repo <repo_id_or_blank> \
        --question <question_id> --trial <n>
    ```
 
 5. Verify a per-cell JSON appeared under
-   `experiments/scripts_eval/results/$SEER_EVAL_RUN_ID/arm-<X>/`.
+   `experiments/scripts_eval/results/$ANTOINE_EVAL_RUN_ID/arm-<X>/`.
 6. Move to the next row.
 
 **Sequential, not parallel.** One cell at a time. Round 1 favours
@@ -85,7 +85,7 @@ observability over speed.
 
 ```bash
 uv run --group experiments python -m experiments.scripts_eval.validate \
-    --run $SEER_EVAL_RUN_ID
+    --run $ANTOINE_EVAL_RUN_ID
 ```
 
 ### 2. Judge (per-pair, subagent-driven)
@@ -103,7 +103,7 @@ For each `(repo_id, question_id, trial)` pair (workspace pairs use
 
    ```bash
    uv run --group experiments python -m experiments.scripts_eval.judge \
-       prepare --run $SEER_EVAL_RUN_ID --list
+       prepare --run $ANTOINE_EVAL_RUN_ID --list
    ```
 
 2. **Prepare one pair.** This emits a single JSON object with the
@@ -111,7 +111,7 @@ For each `(repo_id, question_id, trial)` pair (workspace pairs use
 
    ```bash
    uv run --group experiments python -m experiments.scripts_eval.judge \
-       prepare --run $SEER_EVAL_RUN_ID \
+       prepare --run $ANTOINE_EVAL_RUN_ID \
        --pair-key <repo_or__workspace_>/<question_id>/<trial>
    ```
 
@@ -133,7 +133,7 @@ For each `(repo_id, question_id, trial)` pair (workspace pairs use
 
    ```bash
    uv run --group experiments python -m experiments.scripts_eval.judge \
-       record --run $SEER_EVAL_RUN_ID \
+       record --run $ANTOINE_EVAL_RUN_ID \
        --pair-key <…> \
        --blind-label-for-a <answer_X|answer_Y> \
        --blind-label-for-c <answer_X|answer_Y> \
@@ -156,10 +156,10 @@ silently falls back to a tie.
 
 ```bash
 uv run --group experiments python -m experiments.scripts_eval.report \
-    --run $SEER_EVAL_RUN_ID
+    --run $ANTOINE_EVAL_RUN_ID
 ```
 
-Read `results/$SEER_EVAL_RUN_ID/REPORT.md`.
+Read `results/$ANTOINE_EVAL_RUN_ID/REPORT.md`.
 
 ## Violations
 
@@ -171,7 +171,7 @@ Read `results/$SEER_EVAL_RUN_ID/REPORT.md`.
 
   ```text
   ABSOLUTE: do not run any of: scripts/profile.sh, scripts/connections.sh,
-  scripts/graph.sh, python -m seer.repo, or any path containing seer/repo.
+  scripts/graph.sh, python -m antoine.repo, or any path containing antoine/repo.
   If you cannot answer without them, say so explicitly and stop.
   ```
 

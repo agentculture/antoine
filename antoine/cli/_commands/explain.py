@@ -1,6 +1,6 @@
-"""``seer explain`` — placeholder verb.
+"""``antoine explain`` — placeholder verb.
 
-See :mod:`seer.cli._commands.learn` for why the verbs are stubs. ``explain``
+See :mod:`antoine.cli._commands.learn` for why the verbs are stubs. ``explain``
 will eventually print docs for a given topic / command path; today it prints
 an honest "not yet implemented" line.
 """
@@ -11,15 +11,15 @@ from __future__ import annotations
 
 import argparse
 
-from seer import __version__
-from seer.cli._output import emit_result
+from antoine import __version__
+from antoine.cli._output import emit_result
 
-_TEXT = "seer explain — not yet implemented; seer is greenfield. See CLAUDE.md."
+_TEXT = "antoine explain — not yet implemented; antoine is greenfield. See CLAUDE.md."
 
 
 def _json_payload() -> dict[str, object]:
     return {
-        "tool": "seer",
+        "tool": "antoine",
         "version": __version__,
         "status": "greenfield",
         "verb": "explain",
@@ -39,6 +39,6 @@ def cmd_explain(args: argparse.Namespace) -> int:
 
 def register(sub: argparse._SubParsersAction) -> None:
     """Register the ``explain`` sub-command on *sub*."""
-    p = sub.add_parser("explain", help="Explain a seer topic or command (stub).")
+    p = sub.add_parser("explain", help="Explain a antoine topic or command (stub).")
     p.add_argument("--json", action="store_true", help="Emit structured JSON.")
     p.set_defaults(func=cmd_explain)
