@@ -11,6 +11,7 @@ from collections import deque
 
 from antoine.cli._errors import EXIT_ENV_ERROR, AntoineError
 from antoine.cli._output import emit_result
+from antoine.kata.log._gc import gc as _gc_run
 from antoine.kata.log._store import LogStore
 
 
@@ -45,6 +46,34 @@ def _handle_tail(args: argparse.Namespace) -> int:
     return 0
 
 
+def _handle_gc(args: argparse.Namespace) -> int:
+    store = LogStore()
+    if not store.root.exists():
+        emit_result("deleted 0 shape files, 0 args files (no log present)", json_mode=False)
+        return 0
+    try:
+        result = _gc_run(root=store.root, ttl_days=args.ttl_days)
+    except PermissionError as exc:
+        raise AntoineError(
+            code=EXIT_ENV_ERROR,
+            message=(
+                f"GC could not delete files past TTL: {exc}. "
+                "The privacy invariant requires expired data to be removed."
+            ),
+            remediation=(
+                "Check filesystem permissions on .antoine/log/ "
+                "(needs delete access for the user running antoine), then retry."
+            ),
+        ) from exc
+
+    emit_result(
+        f"deleted {len(result.deleted_shape)} shape files, "
+        f"{len(result.deleted_args)} args files",
+        json_mode=False,
+    )
+    return 0
+
+
 def register(sub: argparse._SubParsersAction) -> None:
     parser = sub.add_parser(
         "log",
@@ -59,7 +88,13 @@ def register(sub: argparse._SubParsersAction) -> None:
     tail.set_defaults(func=_handle_tail)
 
     gc_p = subsub.add_parser("gc", help="delete capture entries past TTL")
-    gc_p.set_defaults(func=_unimplemented)
+    gc_p.add_argument(
+        "--ttl-days",
+        type=int,
+        default=7,
+        help="retention window in days (default: 7)",
+    )
+    gc_p.set_defaults(func=_handle_gc)
 
     grep_p = subsub.add_parser("grep", help="filter log entries by substring")
     grep_p.set_defaults(func=_unimplemented)

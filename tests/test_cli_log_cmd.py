@@ -3,6 +3,8 @@
 from __future__ import annotations
 
 import json
+import os
+from datetime import datetime, timedelta, timezone
 from pathlib import Path
 
 import pytest
@@ -92,3 +94,54 @@ def test_log_tail_with_empty_store_exits_two_with_error(
     err = capsys.readouterr().err
     assert "No capture data" in err
     assert "kata learn" in err  # remediation hint
+
+
+def _age_file(path: Path, days: int) -> None:
+    age = (datetime.now(timezone.utc) - timedelta(days=days)).timestamp()
+    os.utime(path, (age, age))
+
+
+def test_log_gc_deletes_stale_and_reports_counts(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+    capsys: pytest.CaptureFixture[str],
+) -> None:
+    monkeypatch.chdir(tmp_path)
+    log_root = tmp_path / ".antoine" / "log"
+    _seed_log(log_root, count=1)
+    _age_file(log_root / "2026-05-17.jsonl", days=10)
+
+    rc = main(["log", "gc"])
+    assert rc == 0
+    out = capsys.readouterr().out
+    assert "deleted 1 shape files" in out
+    assert "0 args files" in out
+    assert not (log_root / "2026-05-17.jsonl").exists()
+
+
+def test_log_gc_with_no_store_is_noop_zero_exit(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+    capsys: pytest.CaptureFixture[str],
+) -> None:
+    monkeypatch.chdir(tmp_path)
+    rc = main(["log", "gc"])
+    assert rc == 0
+    out = capsys.readouterr().out
+    assert "deleted 0 shape file" in out
+
+
+def test_log_gc_custom_ttl_flag(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+    capsys: pytest.CaptureFixture[str],
+) -> None:
+    monkeypatch.chdir(tmp_path)
+    log_root = tmp_path / ".antoine" / "log"
+    _seed_log(log_root, count=1)
+    _age_file(log_root / "2026-05-17.jsonl", days=3)
+
+    # Default TTL would keep it; --ttl-days=1 deletes it.
+    rc = main(["log", "gc", "--ttl-days", "1"])
+    assert rc == 0
+    assert not (log_root / "2026-05-17.jsonl").exists()
