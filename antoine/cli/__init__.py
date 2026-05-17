@@ -12,7 +12,7 @@ the raw argv (:func:`main` sets ``_AntoineArgumentParser._json_hint`` before
 ``parse_args``).
 """
 
-# pylint: disable=duplicate-code  # _dispatch mirrors antoine.repo.__main__ by design
+# pylint: disable=duplicate-code  # _dispatch keeps a deliberate pattern shared with sibling CLIs
 
 from __future__ import annotations
 
@@ -57,12 +57,9 @@ def _build_parser() -> argparse.ArgumentParser:
     sub = parser.add_subparsers(dest="command", parser_class=_AntoineArgumentParser)
 
     # pylint: disable=import-outside-toplevel
-    from antoine.cli._commands import classify as _classify_cmd
     from antoine.cli._commands import explain as _explain_cmd
-    from antoine.cli._commands import grep as _grep_cmd
     from antoine.cli._commands import learn as _learn_cmd
     from antoine.cli._commands import log as _log_cmd
-    from antoine.cli._commands import recent as _recent_cmd
     from antoine.cli._commands import whoami as _whoami_cmd
 
     # pylint: enable=import-outside-toplevel
@@ -70,9 +67,6 @@ def _build_parser() -> argparse.ArgumentParser:
     _learn_cmd.register(sub)
     _explain_cmd.register(sub)
     _whoami_cmd.register(sub)
-    _classify_cmd.register(sub)
-    _grep_cmd.register(sub)
-    _recent_cmd.register(sub)
     _log_cmd.register(sub)
 
     return parser
