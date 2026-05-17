@@ -232,3 +232,8 @@ experiments/scripts_eval/results/*
 
 # Claude Code per-machine scheduler lock
 .claude/scheduled_tasks.lock
+
+# kata-cli local store — everything under .antoine/ is local-only,
+# EXCEPT katas.toml which is the committed audit ledger.
+.antoine/*
+!.antoine/katas.toml

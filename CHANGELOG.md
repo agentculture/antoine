@@ -5,6 +5,23 @@ All notable changes to this project will be documented in this file.
 Format follows [Keep a Changelog](https://keepachangelog.com/). This project
 adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.10.0] - 2026-05-17
+
+### Added
+
+- `kata log {tail, gc, grep}` verbs for inspecting the local capture log
+  under `.antoine/log/`.
+- `antoine.kata.log` engine subpackage: `LogEntry` schema, daily-sharded
+  `LogStore`, `ArgsSidecar`, TTL `gc` with privacy invariant (args files
+  deleted first).
+- `.gitignore` rule: everything under `.antoine/` is local-only except
+  `katas.toml` (the future committed ledger; introduced in cell 4).
+- `docs/kata/log-schema.md` documenting the JSONL row format.
+
+This is **Cell 1** of the kata-cli capture/reduce/assess loop. See
+`docs/superpowers/specs/2026-05-17-kata-loop-design.md` for the full
+8-cell scope.
+
 ## [0.9.2] - 2026-05-17
 
 ### Changed

@@ -61,6 +61,7 @@ def _build_parser() -> argparse.ArgumentParser:
     from antoine.cli._commands import explain as _explain_cmd
     from antoine.cli._commands import grep as _grep_cmd
     from antoine.cli._commands import learn as _learn_cmd
+    from antoine.cli._commands import log as _log_cmd
     from antoine.cli._commands import recent as _recent_cmd
     from antoine.cli._commands import whoami as _whoami_cmd
 
@@ -72,6 +73,7 @@ def _build_parser() -> argparse.ArgumentParser:
     _classify_cmd.register(sub)
     _grep_cmd.register(sub)
     _recent_cmd.register(sub)
+    _log_cmd.register(sub)
 
     return parser
 
