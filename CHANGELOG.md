@@ -5,6 +5,12 @@ All notable changes to this project will be documented in this file.
 Format follows [Keep a Changelog](https://keepachangelog.com/). This project
 adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.9.2] - 2026-05-17
+
+### Changed
+
+- CLAUDE.md: add Name section explaining antoine = N to 1 (collapse N ad-hoc tool calls into one kata-cli verb)
+
 ## [0.9.1] - 2026-05-17
 
 ### Changed
