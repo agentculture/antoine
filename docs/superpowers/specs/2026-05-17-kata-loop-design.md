@@ -40,6 +40,11 @@ Four properties hold:
 4. **Errors are remediable.** Every non-zero exit prints a three-line
    block (Error / Fix / Then) so the operator always knows what
    happened, what to do, and what success looks like.
+5. **antoine never crashes.** No Python traceback ever reaches stderr.
+   The caller is an agent — its planner expects structured output, not
+   a crash dump. Every unexpected exception is caught, written to an
+   internal debug log, and reported to the caller in the same
+   Error/Fix/Then format as a known error.
 
 ## Architecture
 
@@ -127,6 +132,9 @@ it survives antoine uninstall.
 
 ### Privacy & retention
 
+- The `.gitignore` pattern is "everything under `.antoine/` except
+  `katas.toml`" — so the ledger is committed, every other antoine
+  byproduct (log, debug log, internal state) is local-only.
 - `.antoine/log/**` is gitignored and ephemeral.
 - Raw args (`.antoine/log/args/`) are deleted after 7 days by
   `kata log gc` (runs lazily on every `suggest`/`assess`).
@@ -223,8 +231,37 @@ Selected contracts:
   audit trail).
 - **Exit 7** — `kata log gc` cannot delete files past TTL. Privacy
   invariant takes precedence over all other behavior.
+- **Exit 99** — unexpected internal error (antoine bug). Distinct from
+  user-actionable codes so the agent can route on it.
 
 `kata doctor` reports warnings using the same three-line format.
+
+### Crash safety contract
+
+antoine never crashes. The existing CLI chassis
+(`antoine/cli/__init__.py`) already catches all exceptions from
+handlers and wraps them; this spec elevates that behavior to a named
+design invariant and tightens the unexpected-error path:
+
+- **No Python traceback ever reaches stderr.** Argparse errors,
+  handler `AntoineError`s, and bare exceptions all route through the
+  Error/Fix/Then formatter.
+- **Unexpected exceptions** (anything not raised as `AntoineError`):
+  exit 99 with a message of the form `unexpected: <ExcClass>: <msg>`.
+  The full traceback, antoine version, argv, and a recent log-tail
+  snapshot are written to `.antoine/last-error.log` (overwritten each
+  run; size-capped at 1 MiB).
+- **The Fix line in that case** is: `Include .antoine/last-error.log
+  when filing a bug at <repo URL>.` The agent can read that file and
+  attach it.
+- **The Then line in that case** is: `kata doctor` reports no recent
+  internal errors.
+- **OS-level signals** (SIGTERM, SIGINT) exit cleanly with a brief
+  Error/Fix/Then noting that the run was interrupted.
+
+This contract holds for every verb. There is no `--debug` flag that
+re-enables tracebacks-on-stderr; the debug log is always available and
+the agent's planner is never surprised by unstructured output.
 
 ## Testing
 
