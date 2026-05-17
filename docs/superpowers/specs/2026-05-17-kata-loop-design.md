@@ -251,9 +251,10 @@ design invariant and tightens the unexpected-error path:
   The full traceback, antoine version, argv, and a recent log-tail
   snapshot are written to `.antoine/last-error.log` (overwritten each
   run; size-capped at 1 MiB).
-- **The Fix line in that case** is: `Include .antoine/last-error.log
-  when filing a bug at <repo URL>.` The agent can read that file and
-  attach it.
+- **The Fix line in that case** is: `Open an issue at
+  https://github.com/agentculture/antoine/issues and include
+  .antoine/last-error.log.` The agent can read that file and attach
+  it.
 - **The Then line in that case** is: `kata doctor` reports no recent
   internal errors.
 - **OS-level signals** (SIGTERM, SIGINT) exit cleanly with a brief
