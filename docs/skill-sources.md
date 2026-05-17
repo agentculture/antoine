@@ -29,5 +29,5 @@ explicitly — these copies do not auto-update.
   in the downstream `SKILL.md` frontmatter `description`.
 - **Origin-skills may graduate to a sibling repo** when their surface
   stabilizes and warrants its own distribution. Precedent: `code-lookup`
-  + `repo-map` → `code-lens-cli`, 2026-05-17 (antoine PR #25 closes the
-  loop opened by code-lens-cli #2).
+  and `repo-map` → `code-lens-cli`, 2026-05-17 (antoine PR #25 closes
+  the loop opened by code-lens-cli #2).
