@@ -70,3 +70,22 @@ def test_logentry_args_digest_must_be_sha256() -> None:
             tool="Read",
             args_digest="md5:deadbeef",
         )
+
+
+def test_logentry_from_json_line_drops_unknown_fields() -> None:
+    """Forward-compat: adapters may emit fields antoine doesn't know yet."""
+    line = json.dumps(
+        {
+            "ts": "2026-05-17T14:22:01Z",
+            "session": "s",
+            "agent": "claude-code",
+            "tool": "Read",
+            "args_digest": "sha256:" + "0" * 64,
+            "future_field": "tolerated",
+            "another_future_field": [1, 2, 3],
+        }
+    )
+    entry = LogEntry.from_json_line(line)
+    assert entry.session == "s"
+    # No AttributeError; unknown fields are dropped, not stored.
+    assert not hasattr(entry, "future_field")

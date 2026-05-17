@@ -9,7 +9,7 @@ This module is pure data + serialization; it owns no IO.
 from __future__ import annotations
 
 import json
-from dataclasses import asdict, dataclass
+from dataclasses import asdict, dataclass, fields
 from typing import Any
 
 _REQUIRED = ("ts", "session", "agent", "tool", "args_digest")
@@ -47,9 +47,16 @@ class LogEntry:
 
     @classmethod
     def from_json_line(cls, line: str) -> "LogEntry":
-        """Parse one JSONL row. Raises ValueError on missing required fields."""
+        """Parse one JSONL row. Raises ValueError on missing required fields.
+
+        Unknown fields in ``payload`` are silently dropped — adapters may emit
+        future-evolved schemas, and tolerating that keeps log ingestion working
+        instead of TypeError-ing through ``cls(**payload)``. Forward-compat is
+        part of the "antoine never crashes" contract.
+        """
         payload: dict[str, Any] = json.loads(line)
         for field_name in _REQUIRED:
             if field_name not in payload:
                 raise ValueError(f"missing required field: {field_name!r}")
-        return cls(**payload)
+        known = {f.name for f in fields(cls)}
+        return cls(**{k: v for k, v in payload.items() if k in known})

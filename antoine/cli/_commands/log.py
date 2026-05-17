@@ -5,7 +5,7 @@ from __future__ import annotations
 import argparse
 from collections import deque
 
-from antoine.cli._errors import EXIT_ENV_ERROR, AntoineError
+from antoine.cli._errors import EXIT_ENV_ERROR, EXIT_USER_ERROR, AntoineError
 from antoine.cli._output import emit_result
 from antoine.kata.log._gc import gc as _gc_run
 from antoine.kata.log._store import LogStore
@@ -21,7 +21,7 @@ def _handle_grep(args: argparse.Namespace) -> int:
     if not store.root.exists() or not any(store.root.glob("*.jsonl")):
         raise AntoineError(
             code=EXIT_ENV_ERROR,
-            message=("No capture data found in .antoine/log/. " "antoine has nothing to grep."),
+            message="No capture data found in .antoine/log/. antoine has nothing to grep.",
             remediation=(
                 "Run `kata learn` to see how to instrument your agent, "
                 "then start a session before grepping the log."
@@ -61,30 +61,41 @@ def _handle_tail(args: argparse.Namespace) -> int:
 
 
 def _handle_gc(args: argparse.Namespace) -> int:
+    if args.ttl_days < 0:
+        raise AntoineError(
+            code=EXIT_USER_ERROR,
+            message=(
+                f"--ttl-days must be >= 0 (got {args.ttl_days}). "
+                "A negative TTL would classify every log file as stale and "
+                "delete the entire log."
+            ),
+            remediation="Re-run with a non-negative value, e.g. `kata log gc --ttl-days 7`.",
+        )
+
     store = LogStore()
     if not store.root.exists():
-        emit_result("deleted 0 shape files, 0 args files (no log present)", json_mode=False)
-        return 0
-    try:
-        result = _gc_run(root=store.root, ttl_days=args.ttl_days)
-    except PermissionError as exc:
-        raise AntoineError(
-            code=EXIT_ENV_ERROR,
-            message=(
-                f"GC could not delete files past TTL: {exc}. "
-                "The privacy invariant requires expired data to be removed."
-            ),
-            remediation=(
-                "Check filesystem permissions on .antoine/log/ "
-                "(needs delete access for the user running antoine), then retry."
-            ),
-        ) from exc
+        message = "deleted 0 shape files, 0 args files (no log present)"
+    else:
+        try:
+            result = _gc_run(root=store.root, ttl_days=args.ttl_days)
+        except PermissionError as exc:
+            raise AntoineError(
+                code=EXIT_ENV_ERROR,
+                message=(
+                    f"GC could not delete files past TTL: {exc}. "
+                    "The privacy invariant requires expired data to be removed."
+                ),
+                remediation=(
+                    "Check filesystem permissions on .antoine/log/ "
+                    "(needs delete access for the user running antoine), then retry."
+                ),
+            ) from exc
+        message = (
+            f"deleted {len(result.deleted_shape)} shape files, "
+            f"{len(result.deleted_args)} args files"
+        )
 
-    emit_result(
-        f"deleted {len(result.deleted_shape)} shape files, "
-        f"{len(result.deleted_args)} args files",
-        json_mode=False,
-    )
+    emit_result(message, json_mode=False)
     return 0
 
 

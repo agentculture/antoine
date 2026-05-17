@@ -32,8 +32,13 @@ def _stale_files(directory: Path, ttl_seconds: float, now: float) -> list[Path]:
 def gc(*, root: Path, ttl_days: int) -> GCResult:
     """Delete files older than ``ttl_days`` from ``root`` and ``root/args``.
 
+    Raises ``ValueError`` on negative ``ttl_days`` — a negative TTL would
+    classify every file as stale and wipe the whole log from a single typo,
+    which we treat as a programming error, not silently allowed input.
     Raises ``PermissionError`` if any unlink fails — privacy invariant.
     """
+    if ttl_days < 0:
+        raise ValueError(f"ttl_days must be >= 0 (got {ttl_days})")
     now = time.time()
     ttl_seconds = ttl_days * 86400.0
 

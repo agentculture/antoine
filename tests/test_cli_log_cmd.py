@@ -147,6 +147,27 @@ def test_log_gc_custom_ttl_flag(
     assert not (log_root / "2026-05-17.jsonl").exists()
 
 
+def test_log_gc_negative_ttl_rejected_with_user_error(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+    capsys: pytest.CaptureFixture[str],
+) -> None:
+    """A negative TTL would wipe every log file; reject it as user error.
+
+    The privacy invariant says expired data MUST go, but '>= 0 days old'
+    is everyone — so we treat negative TTL as a typo, not a request.
+    """
+    monkeypatch.chdir(tmp_path)
+    log_root = tmp_path / ".antoine" / "log"
+    _seed_log(log_root, count=1)  # would be wiped if validation missed
+    rc = main(["log", "gc", "--ttl-days=-1"])
+    assert rc == 1  # EXIT_USER_ERROR
+    err = capsys.readouterr().err
+    assert "--ttl-days must be >= 0" in err
+    # And the log file is still there — no wipe.
+    assert (log_root / "2026-05-17.jsonl").exists()
+
+
 def test_log_grep_matches_tool_substring(
     tmp_path: Path,
     monkeypatch: pytest.MonkeyPatch,

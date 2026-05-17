@@ -10,7 +10,6 @@ sibling sidecar handled by ``_args.py`` (next task).
 
 from __future__ import annotations
 
-import json
 from collections.abc import Iterator
 from pathlib import Path
 
@@ -48,5 +47,10 @@ class LogStore:
                         continue
                     try:
                         yield LogEntry.from_json_line(stripped)
-                    except (ValueError, json.JSONDecodeError) as exc:
+                    except (ValueError, TypeError) as exc:
+                        # ValueError covers json.JSONDecodeError (subclass) and
+                        # the explicit raises in LogEntry. TypeError is
+                        # belt-and-suspenders for any unexpected dataclass
+                        # construction failure — schema evolution is otherwise
+                        # tolerated by from_json_line dropping unknown fields.
                         raise ValueError(f"log corrupted: {shard.name}:{line_no}: {exc}") from exc

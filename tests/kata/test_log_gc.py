@@ -60,3 +60,13 @@ def test_gc_raises_on_permission_error(tmp_path: Path) -> None:
     finally:
         # Restore for cleanup.
         tmp_path.chmod(stat.S_IRWXU)
+
+
+def test_gc_rejects_negative_ttl(tmp_path: Path) -> None:
+    """Engine-level guard against the negative-TTL log-wipe footgun."""
+    fresh = tmp_path / "2026-05-17.jsonl"
+    _touch(fresh, days_old=1)
+    with pytest.raises(ValueError, match="ttl_days must be >= 0"):
+        gc(root=tmp_path, ttl_days=-1)
+    # The file is still there — guard fires BEFORE any unlink.
+    assert fresh.exists()
