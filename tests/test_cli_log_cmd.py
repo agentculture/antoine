@@ -33,6 +33,21 @@ def test_log_unknown_subcommand_exits_one_with_remediation(
     assert "log --help" in err
 
 
+def test_log_subcommand_with_bad_flag_routes_through_structured_error(
+    capsys: pytest.CaptureFixture[str],
+) -> None:
+    """A bad flag on `log tail` must exit 1 (EXIT_USER_ERROR), not default
+    argparse's exit 2 — the nested subparser must inherit the project's
+    structured-error parser_class. (Qodo PR #25 bug 1.)
+    """
+    with pytest.raises(SystemExit) as excinfo:
+        main(["log", "tail", "--bogus-flag"])
+    assert excinfo.value.code == 1
+    err = capsys.readouterr().err
+    # `_AntoineArgumentParser.error` appends a remediation hint mentioning --help.
+    assert "--help" in err
+
+
 def _seed_log(root: Path, count: int = 3) -> None:
     """Write `count` synthetic entries into root/2026-05-17.jsonl."""
     root.mkdir(parents=True, exist_ok=True)
