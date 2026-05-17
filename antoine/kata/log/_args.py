@@ -6,6 +6,7 @@ aggregate stats without raw content.
 
 Files live at <root>/args/<session>.jsonl, one JSON object per line.
 """
+
 from __future__ import annotations
 
 import json

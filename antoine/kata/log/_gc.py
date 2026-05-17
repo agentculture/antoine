@@ -5,6 +5,7 @@ shape index. If any unlink raises ``PermissionError``, propagate it
 unchanged so the caller (the ``kata log gc`` verb handler) can translate
 it into an ``AntoineError`` with an actionable Fix line.
 """
+
 from __future__ import annotations
 
 import time

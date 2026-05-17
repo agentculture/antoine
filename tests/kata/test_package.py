@@ -1,4 +1,5 @@
 """Smoke test: kata.log package is importable and exposes nothing yet."""
+
 from __future__ import annotations
 
 

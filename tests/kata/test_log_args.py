@@ -1,4 +1,5 @@
 """Args sidecar — raw args keyed by (session, row_index)."""
+
 from __future__ import annotations
 
 from pathlib import Path

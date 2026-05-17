@@ -1,4 +1,5 @@
 """TTL gc — deletes shape + args past TTL; raises on permission failure."""
+
 from __future__ import annotations
 
 import os
