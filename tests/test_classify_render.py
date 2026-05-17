@@ -1,8 +1,8 @@
-"""Tests for seer.lookup.render."""
+"""Tests for antoine.lookup.render."""
 
 from __future__ import annotations
 
-from seer.lookup.render import render_classify_markdown
+from antoine.lookup.render import render_classify_markdown
 
 
 def _fixture() -> dict:

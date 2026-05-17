@@ -1,4 +1,4 @@
-"""Tests for seer.repo.graph."""
+"""Tests for antoine.repo.graph."""
 
 from __future__ import annotations
 
@@ -6,8 +6,8 @@ from pathlib import Path
 
 import pytest
 
-from seer.cli._errors import SeerError
-from seer.repo.graph import _safe, build_graph
+from antoine.cli._errors import AntoineError
+from antoine.repo.graph import _safe, build_graph
 
 
 def _mkrepo(root: Path, name: str, deps: list[str] | None = None) -> Path:
@@ -57,12 +57,12 @@ def test_build_graph_surfaces_external_targets(tmp_path: Path) -> None:
 
 
 def test_build_graph_strict_raises_on_per_node_error(tmp_path: Path) -> None:
-    """strict=True re-raises SeerError instead of inlining it."""
+    """strict=True re-raises AntoineError instead of inlining it."""
     _mkrepo(tmp_path, "alpha")
     bad = tmp_path / "bad"
     bad.mkdir()
     (bad / "pyproject.toml").write_text("[project\nname='bad'")  # malformed TOML
-    with pytest.raises(SeerError):
+    with pytest.raises(AntoineError):
         build_graph([tmp_path], strict=True)
 
 

@@ -4,7 +4,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## Project Status
 
-`seer-cli` is an AgentCulture sibling repo — **codebase lookup and indexing for
+`antoine` is an AgentCulture sibling repo — **codebase lookup and indexing for
 agent skills**. The onboarding scaffold is in place (package, CLI chassis, CI,
 vendored skills); the actual lookup and indexing engine — how codebases are
 scanned, the index format, where it is stored, and how agent skills consume the
@@ -20,8 +20,8 @@ uv sync                       # install the package + dev dependencies
 ## Run
 
 ```bash
-uv run seer --version         # or: uv run python -m seer
-uv run seer learn             # placeholder verbs: learn / explain / whoami
+uv run antoine --version         # or: uv run python -m antoine
+uv run antoine learn             # placeholder verbs: learn / explain / whoami
 ```
 
 ## Test
@@ -34,9 +34,9 @@ uv run pytest tests/test_cli_chassis.py::test_no_args_prints_help_and_returns_ze
 ## Lint / Format
 
 ```bash
-uv run flake8 --config=.flake8 seer/ tests/
-uv run black seer/ tests/
-uv run isort seer/ tests/
+uv run flake8 --config=.flake8 antoine/ tests/
+uv run black antoine/ tests/
+uv run isort antoine/ tests/
 markdownlint-cli2 "**/*.md"
 ```
 
@@ -44,14 +44,14 @@ Bandit and pylint run in CI (`.github/workflows/security-checks.yml`).
 
 ## Architecture
 
-- `seer/cli/__init__.py` — the argparse CLI chassis: structured error
-  routing (`_SeerArgumentParser`), `--json` hint detection, and
-  `_dispatch` (invokes the verb handler, translating `SeerError` and bare
+- `antoine/cli/__init__.py` — the argparse CLI chassis: structured error
+  routing (`_AntoineArgumentParser`), `--json` hint detection, and
+  `_dispatch` (invokes the verb handler, translating `AntoineError` and bare
   exceptions to structured exit codes). `main()` is the entry point, exposed
-  as the `seer` console script and via `python -m seer`.
-- `seer/cli/_errors.py` — `SeerError` and the exit-code policy.
-- `seer/cli/_output.py` — strict stdout/stderr split helpers.
-- `seer/cli/_commands/` — one module per verb, each exposing `register()`.
+  as the `antoine` console script and via `python -m antoine`.
+- `antoine/cli/_errors.py` — `AntoineError` and the exit-code policy.
+- `antoine/cli/_output.py` — strict stdout/stderr split helpers.
+- `antoine/cli/_commands/` — one module per verb, each exposing `register()`.
   All three verbs are currently greenfield stubs.
 
 ## Version Management
@@ -70,9 +70,9 @@ from `../steward/.claude/skills/<name>/`.
 
 `experiments/scripts_eval/` is the round-1 A/B-test harness for the
 `repo-map` skill. The three Claude Code hooks wired in
-`.claude/settings.json` are **env-var-gated** (`SEER_EVAL_RUN_ID`,
-`SEER_EVAL_ARM`) and no-op outside an active eval session, so
-day-to-day seer-cli work is unaffected.
+`.claude/settings.json` are **env-var-gated** (`ANTOINE_EVAL_RUN_ID`,
+`ANTOINE_EVAL_ARM`) and no-op outside an active eval session, so
+day-to-day antoine work is unaffected.
 
 When asked to run an eval round, work the harness, or interpret its
 results, read these in order:
@@ -124,7 +124,7 @@ not subagents you dispatch):
 of the PR #18 organic-adoption smokes showed that **subagents construct
 their plan from the prompt body before consulting the skills catalog** —
 so a description-shape change on the skill itself does not move adoption
-(0 of 2 models picked up `seer recent` for a question perfectly tuned for
+(0 of 2 models picked up `antoine recent` for a question perfectly tuned for
 it). Round-3 confirmed the parent-agent path: a fresh session loading the
 table delegated *and the subagent invoked the verb directly via the
 injected directive*.
@@ -140,4 +140,4 @@ in row 1 above — the table does not change that.
 
 ## Workspace Context
 
-The GitHub remote is `agentculture/seer-cli`. When opening PRs or posting comments here as an AI assistant, sign them so it's clear they're AI-authored — e.g. `- seer (Claude)`.
+The GitHub remote is `agentculture/antoine`. When opening PRs or posting comments here as an AI assistant, sign them so it's clear they're AI-authored — e.g. `- antoine (Claude)`.

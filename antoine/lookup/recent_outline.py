@@ -1,4 +1,4 @@
-"""seer.lookup.recent_outline — git log + AST symbol diff per commit.
+"""antoine.lookup.recent_outline — git log + AST symbol diff per commit.
 
 Provides:
   recent_with_outline  — run ``git log`` and pair every changed file with
@@ -14,8 +14,8 @@ import subprocess  # noqa: S404  # nosec B404
 from pathlib import Path
 from typing import Any
 
-from seer.cli._errors import EXIT_ENV_ERROR, EXIT_USER_ERROR, SeerError
-from seer.lookup.ast_scope import list_symbols
+from antoine.cli._errors import EXIT_ENV_ERROR, EXIT_USER_ERROR, AntoineError
+from antoine.lookup.ast_scope import list_symbols
 
 __all__ = ["recent_with_outline", "render_recent_markdown"]
 
@@ -28,8 +28,8 @@ def _run_git(  # type: ignore[type-arg]
     """Run a git command in *path* and return the CompletedProcess.
 
     Raises:
-        SeerError(EXIT_ENV_ERROR): git not found on PATH.
-        SeerError(EXIT_ENV_ERROR): git exits non-zero (unless *allow_nonzero*).
+        AntoineError(EXIT_ENV_ERROR): git not found on PATH.
+        AntoineError(EXIT_ENV_ERROR): git exits non-zero (unless *allow_nonzero*).
     """
     try:
         result = subprocess.run(  # noqa: S603,S607  # nosec B603 B607
@@ -40,21 +40,21 @@ def _run_git(  # type: ignore[type-arg]
             timeout=30,
         )
     except FileNotFoundError:
-        raise SeerError(
+        raise AntoineError(
             code=EXIT_ENV_ERROR,
             kind="env_error",
             message="git not found on PATH",
             remediation="install git and ensure it is on your PATH.",
         )
     except subprocess.SubprocessError as exc:
-        raise SeerError(
+        raise AntoineError(
             code=EXIT_ENV_ERROR,
             kind="env_error",
             message=f"git subprocess failed: {exc}",
         )
 
     if not allow_nonzero and result.returncode != 0:
-        raise SeerError(
+        raise AntoineError(
             code=EXIT_ENV_ERROR,
             kind="env_error",
             message=f"git exited with code {result.returncode}",
@@ -134,14 +134,14 @@ def _validate_recent_args(n: int, path: str | Path) -> Path:
     """Validate *n* and *path*; return the resolved repo Path on success."""
     repo = Path(path)
     if n < 1:
-        raise SeerError(
+        raise AntoineError(
             code=EXIT_USER_ERROR,
             kind="user_error",
             message=f"n must be >= 1, got {n}",
             remediation="pass a positive integer for the commit count.",
         )
     if not repo.exists() or not repo.is_dir():
-        raise SeerError(
+        raise AntoineError(
             code=EXIT_USER_ERROR,
             kind="user_error",
             message=f"path is not an existing directory: {path}",
@@ -149,7 +149,7 @@ def _validate_recent_args(n: int, path: str | Path) -> Path:
         )
     rev_parse = _run_git(["rev-parse", "--is-inside-work-tree"], repo, allow_nonzero=True)
     if rev_parse.returncode != 0 or rev_parse.stdout.strip() != "true":
-        raise SeerError(
+        raise AntoineError(
             code=EXIT_USER_ERROR,
             kind="user_error",
             message=f"not a git repository: {path}",
@@ -163,7 +163,7 @@ def _fetch_commit_lines(repo: Path, n: int) -> list[str]:
     """Run `git log -n N`; return the non-empty SHA/date/subject lines.
 
     Returns ``[]`` for the empty-repo case (exit 128 with the sentinel
-    stderr). Raises ``SeerError(EXIT_ENV_ERROR)`` for any other fatal error.
+    stderr). Raises ``AntoineError(EXIT_ENV_ERROR)`` for any other fatal error.
     """
     log_result = _run_git(
         ["log", f"-n{n}", "--pretty=format:%H%x09%cI%x09%s"], repo, allow_nonzero=True
@@ -171,14 +171,14 @@ def _fetch_commit_lines(repo: Path, n: int) -> list[str]:
     if log_result.returncode == 128:
         stderr_lc = log_result.stderr.lower()
         if "does not have any commits yet" not in stderr_lc and "fatal" in stderr_lc:
-            raise SeerError(
+            raise AntoineError(
                 code=EXIT_ENV_ERROR,
                 kind="env_error",
                 message="git log failed",
                 reason=log_result.stderr.strip()[:400],
             )
     elif log_result.returncode != 0:
-        raise SeerError(
+        raise AntoineError(
             code=EXIT_ENV_ERROR,
             kind="env_error",
             message=f"git log exited with code {log_result.returncode}",
@@ -209,8 +209,8 @@ def recent_with_outline(n: int = 20, path: str | Path = ".") -> dict[str, Any]:
     Commits are ordered newest-first (same as ``git log``).
 
     Raises:
-        SeerError(EXIT_USER_ERROR): *n* < 1 or *path* is not an existing directory.
-        SeerError(EXIT_ENV_ERROR):  git not found, or git exits with a fatal error.
+        AntoineError(EXIT_USER_ERROR): *n* < 1 or *path* is not an existing directory.
+        AntoineError(EXIT_ENV_ERROR):  git not found, or git exits with a fatal error.
     """
     repo = _validate_recent_args(n, path)
     commit_lines = _fetch_commit_lines(repo, n)

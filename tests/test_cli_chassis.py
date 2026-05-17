@@ -1,4 +1,4 @@
-"""Tests for the seer CLI chassis (verbs are registered in later commits)."""
+"""Tests for the antoine CLI chassis (verbs are registered in later commits)."""
 
 from __future__ import annotations
 
@@ -7,8 +7,8 @@ import sys
 
 import pytest
 
-from seer import __version__
-from seer.cli import main
+from antoine import __version__
+from antoine.cli import main
 
 
 def test_version_flag_exits_zero_and_prints_version(
@@ -25,7 +25,7 @@ def test_no_args_prints_help_and_returns_zero(
 ) -> None:
     rc = main([])
     assert rc == 0
-    assert "usage: seer" in capsys.readouterr().out
+    assert "usage: antoine" in capsys.readouterr().out
 
 
 def test_unknown_verb_routes_through_structured_error(
@@ -39,7 +39,7 @@ def test_unknown_verb_routes_through_structured_error(
 
 def test_python_dash_m_invocation() -> None:
     result = subprocess.run(
-        [sys.executable, "-m", "seer", "--version"],
+        [sys.executable, "-m", "antoine", "--version"],
         capture_output=True,
         text=True,
         check=False,

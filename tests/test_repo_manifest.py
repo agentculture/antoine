@@ -1,4 +1,4 @@
-"""Tests for seer.repo.manifest."""
+"""Tests for antoine.repo.manifest."""
 
 from __future__ import annotations
 
@@ -6,8 +6,8 @@ from pathlib import Path
 
 import pytest
 
-from seer.cli._errors import EXIT_ENV_ERROR, EXIT_USER_ERROR, SeerError
-from seer.repo.manifest import read_pyproject
+from antoine.cli._errors import EXIT_ENV_ERROR, EXIT_USER_ERROR, AntoineError
+from antoine.repo.manifest import read_pyproject
 
 
 def _write_pyproject(repo: Path, body: str) -> None:
@@ -39,14 +39,14 @@ dev = ["pytest"]
 
 
 def test_read_pyproject_missing_file_raises(tmp_path: Path) -> None:
-    with pytest.raises(SeerError) as exc:
+    with pytest.raises(AntoineError) as exc:
         read_pyproject(tmp_path)
     assert exc.value.code == EXIT_USER_ERROR
 
 
 def test_read_pyproject_malformed_toml_raises(tmp_path: Path) -> None:
     _write_pyproject(tmp_path, '[project\nname = "x"')
-    with pytest.raises(SeerError) as exc:
+    with pytest.raises(AntoineError) as exc:
         read_pyproject(tmp_path)
     assert exc.value.code == EXIT_ENV_ERROR
     assert "pyproject.toml" in exc.value.message

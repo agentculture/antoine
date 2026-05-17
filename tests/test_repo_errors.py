@@ -1,16 +1,16 @@
-"""Tests for seer.repo.errors factory functions."""
+"""Tests for antoine.repo.errors factory functions."""
 
 from __future__ import annotations
 
 from pathlib import Path
 
-from seer.cli._errors import EXIT_ENV_ERROR, EXIT_USER_ERROR, SeerError
-from seer.repo import errors
+from antoine.cli._errors import EXIT_ENV_ERROR, EXIT_USER_ERROR, AntoineError
+from antoine.repo import errors
 
 
 def test_manifest_not_found() -> None:
     err = errors.manifest_not_found(Path("/x/nope"))
-    assert isinstance(err, SeerError)
+    assert isinstance(err, AntoineError)
     assert err.code == EXIT_USER_ERROR
     assert err.kind == "user_error"
     assert "/x/nope" in err.message

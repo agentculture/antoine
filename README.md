@@ -1,10 +1,10 @@
-# seer-cli
+# antoine
 
 Codebase lookup and indexing for agent skills.
 
 ## What's here
 
-- **`seer/`** — the package that will eventually expose the lookup
+- **`antoine/`** — the package that will eventually expose the lookup
   verbs. Greenfield: `learn` / `explain` / `whoami` are honest
   placeholder stubs. See [`CLAUDE.md`](./CLAUDE.md) for build / test /
   architecture details.

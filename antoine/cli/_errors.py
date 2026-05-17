@@ -1,8 +1,8 @@
-"""SeerError and exit-code policy.
+"""AntoineError and exit-code policy.
 
-Every failure inside seer raises :class:`SeerError`. The top-level
-``main()`` catches it, formats via :mod:`seer.cli._output`, and exits with
-:attr:`SeerError.code`. This centralises the exit-code policy and guarantees
+Every failure inside antoine raises :class:`AntoineError`. The top-level
+``main()`` catches it, formats via :mod:`antoine.cli._output`, and exits with
+:attr:`AntoineError.code`. This centralises the exit-code policy and guarantees
 no Python traceback leaks to stderr.
 """
 
@@ -23,8 +23,8 @@ EXIT_INTERNAL = 3
 
 
 @dataclass
-class SeerError(Exception):
-    """Structured error raised within seer.
+class AntoineError(Exception):
+    """Structured error raised within antoine.
 
     Fields:
       code:        exit code (see constants above)
@@ -33,7 +33,7 @@ class SeerError(Exception):
       reason:      optional root-cause sentence (what was tried, why it failed)
       kind:        optional short tag — "user_error" | "env_error" | "bug"
 
-    Renderers (:func:`seer.cli._output.emit_error`) skip empty optional
+    Renderers (:func:`antoine.cli._output.emit_error`) skip empty optional
     fields so older call sites that only set code+message+remediation keep
     producing the same output.
     """

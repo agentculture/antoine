@@ -1,6 +1,6 @@
 """Shared I/O helpers for the scripts-eval harness.
 
-All paths resolve relative to the seer-cli repo root, so scripts work
+All paths resolve relative to the antoine repo root, so scripts work
 regardless of cwd. Env-var helpers return None when unset rather than
 raising — call sites decide whether the absence is fatal.
 """
@@ -17,11 +17,11 @@ RAW_DIRNAME = "raw"
 
 
 def eval_run_id() -> str | None:
-    """Return SEER_EVAL_RUN_ID, or None if unset.
+    """Return ANTOINE_EVAL_RUN_ID, or None if unset.
 
     Hooks read this first and no-op when None.
     """
-    val = os.environ.get("SEER_EVAL_RUN_ID")
+    val = os.environ.get("ANTOINE_EVAL_RUN_ID")
     return val if val else None
 
 
@@ -29,12 +29,12 @@ ARMS = ("A", "B", "C")
 
 
 def eval_arm() -> str | None:
-    """Return SEER_EVAL_ARM (must be 'A', 'B', or 'C'), or None if unset."""
-    val = os.environ.get("SEER_EVAL_ARM")
+    """Return ANTOINE_EVAL_ARM (must be 'A', 'B', or 'C'), or None if unset."""
+    val = os.environ.get("ANTOINE_EVAL_ARM")
     if val is None or val == "":
         return None
     if val not in ARMS:
-        raise ValueError(f"SEER_EVAL_ARM must be one of {ARMS} (got {val!r})")
+        raise ValueError(f"ANTOINE_EVAL_ARM must be one of {ARMS} (got {val!r})")
     return val
 
 

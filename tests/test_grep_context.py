@@ -1,4 +1,4 @@
-"""Tests for seer.lookup.grep_context — D1 test suite."""
+"""Tests for antoine.lookup.grep_context — D1 test suite."""
 
 from __future__ import annotations
 
@@ -10,8 +10,8 @@ from typing import Any
 
 import pytest
 
-from seer.cli._errors import EXIT_ENV_ERROR, EXIT_USER_ERROR, SeerError
-from seer.lookup.grep_context import grep_with_context
+from antoine.cli._errors import EXIT_ENV_ERROR, EXIT_USER_ERROR, AntoineError
+from antoine.lookup.grep_context import grep_with_context
 
 # ---------------------------------------------------------------------------
 # Helpers
@@ -111,7 +111,7 @@ def test_grep_no_matches(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> Non
 
 
 # ---------------------------------------------------------------------------
-# D1-c: rg not found — FileNotFoundError → SeerError(EXIT_ENV_ERROR)
+# D1-c: rg not found — FileNotFoundError → AntoineError(EXIT_ENV_ERROR)
 # ---------------------------------------------------------------------------
 
 
@@ -123,7 +123,7 @@ def test_grep_rg_missing(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> Non
 
     monkeypatch.setattr(subprocess, "run", fake_run)
 
-    with pytest.raises(SeerError) as exc_info:
+    with pytest.raises(AntoineError) as exc_info:
         grep_with_context("_INIT_PY", tmp_path)
 
     err = exc_info.value
@@ -160,12 +160,12 @@ def test_grep_non_python_file_scope_is_null(
 
 
 # ---------------------------------------------------------------------------
-# D1-e: path does not exist → SeerError(EXIT_USER_ERROR)
+# D1-e: path does not exist → AntoineError(EXIT_USER_ERROR)
 # ---------------------------------------------------------------------------
 
 
 def test_grep_path_not_found() -> None:
-    with pytest.raises(SeerError) as exc_info:
+    with pytest.raises(AntoineError) as exc_info:
         grep_with_context("foo", "/nonexistent/path/that/does/not/exist")
 
     err = exc_info.value

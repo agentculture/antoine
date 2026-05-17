@@ -1,6 +1,6 @@
-"""``seer learn`` — placeholder verb.
+"""``antoine learn`` — placeholder verb.
 
-seer is a greenfield AgentCulture sibling: the scaffold (package, CLI
+antoine is a greenfield AgentCulture sibling: the scaffold (package, CLI
 chassis, CI, vendored skills) is in place but the codebase lookup and
 indexing engine itself is not implemented yet. This verb prints an honest
 status line so a probing agent or human gets a clear signal rather than a
@@ -13,18 +13,18 @@ from __future__ import annotations
 
 import argparse
 
-from seer import __version__
-from seer.cli._output import emit_result
+from antoine import __version__
+from antoine.cli._output import emit_result
 
 _TEXT = (
-    "seer — codebase lookup and indexing for agent skills. Not yet implemented; "
-    "seer is a greenfield AgentCulture sibling. See CLAUDE.md."
+    "antoine — codebase lookup and indexing for agent skills. Not yet implemented; "
+    "antoine is a greenfield AgentCulture sibling. See CLAUDE.md."
 )
 
 
 def _json_payload() -> dict[str, object]:
     return {
-        "tool": "seer",
+        "tool": "antoine",
         "version": __version__,
         "status": "greenfield",
         "verb": "learn",
@@ -44,6 +44,6 @@ def cmd_learn(args: argparse.Namespace) -> int:
 
 def register(sub: argparse._SubParsersAction) -> None:  # pylint: disable=duplicate-code
     """Register the ``learn`` sub-command on *sub*."""
-    p = sub.add_parser("learn", help="Print seer's self-teaching status line.")
+    p = sub.add_parser("learn", help="Print antoine's self-teaching status line.")
     p.add_argument("--json", action="store_true", help="Emit structured JSON.")
     p.set_defaults(func=cmd_learn)

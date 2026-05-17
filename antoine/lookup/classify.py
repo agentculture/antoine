@@ -12,8 +12,8 @@ import tomllib
 from dataclasses import dataclass, field
 from pathlib import Path
 
-from seer.cli._errors import EXIT_ENV_ERROR, EXIT_USER_ERROR, SeerError
-from seer.repo.errors import malformed_pyproject
+from antoine.cli._errors import EXIT_ENV_ERROR, EXIT_USER_ERROR, AntoineError
+from antoine.repo.errors import malformed_pyproject
 
 
 @dataclass
@@ -38,7 +38,7 @@ _COMPOSE_FILENAMES = ("docker-compose.yml", "docker-compose.yaml", "compose.yml"
 def _load_pyproject(path: Path) -> dict | None:
     """Parse `path/pyproject.toml` or return None if absent.
 
-    Raises `SeerError(EXIT_ENV_ERROR)` if the file exists but is unreadable
+    Raises `AntoineError(EXIT_ENV_ERROR)` if the file exists but is unreadable
     (OS error, non-UTF8) or malformed (invalid TOML).
     """
     pyproject = path / "pyproject.toml"
@@ -237,8 +237,8 @@ _RULES = [
 ]
 
 
-def _path_not_found_error(p: Path) -> SeerError:
-    return SeerError(
+def _path_not_found_error(p: Path) -> AntoineError:
+    return AntoineError(
         code=EXIT_USER_ERROR,
         kind="user_error",
         message=f"path not found: {p}",
@@ -247,8 +247,8 @@ def _path_not_found_error(p: Path) -> SeerError:
     )
 
 
-def _path_not_a_directory_error(p: Path) -> SeerError:
-    return SeerError(
+def _path_not_a_directory_error(p: Path) -> AntoineError:
+    return AntoineError(
         code=EXIT_USER_ERROR,
         kind="user_error",
         message=f"classify expects a directory, got file: {p}",
@@ -257,8 +257,8 @@ def _path_not_a_directory_error(p: Path) -> SeerError:
     )
 
 
-def _pyproject_unreadable_error(p: Path, detail: str) -> SeerError:
-    return SeerError(
+def _pyproject_unreadable_error(p: Path, detail: str) -> AntoineError:
+    return AntoineError(
         code=EXIT_ENV_ERROR,
         kind="env_error",
         message=f"cannot read pyproject.toml at {p}",

@@ -1,10 +1,10 @@
-"""Tests for seer.lookup.ast_scope — Scope, list_symbols, find_enclosing."""
+"""Tests for antoine.lookup.ast_scope — Scope, list_symbols, find_enclosing."""
 
 from __future__ import annotations
 
 import ast
 
-from seer.lookup.ast_scope import Scope, find_enclosing, list_symbols
+from antoine.lookup.ast_scope import Scope, find_enclosing, list_symbols
 
 SRC = """class Foo:
     def method_a(self):

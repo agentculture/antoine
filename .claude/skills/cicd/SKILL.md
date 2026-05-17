@@ -9,7 +9,7 @@ description: >
   review feedback, polling CI status, or the user says "create PR",
   "review comments", "address feedback", "resolve threads". Renamed
   from `pr-review` in steward 0.7.0; rebased on agex in 0.12.0.
-  seer-cli divergence: `scripts/portability-lint.sh` drops the GNU-only
+  antoine divergence: `scripts/portability-lint.sh` drops the GNU-only
   `xargs -r` flag for BSD/macOS portability — see `docs/skill-sources.md`.
 ---
 

@@ -1,4 +1,4 @@
-"""argparse dispatch for ``python -m seer.repo``.
+"""argparse dispatch for ``python -m antoine.repo``.
 
 Verbs:
 
@@ -11,8 +11,8 @@ Output: markdown by default; JSON when ``--json`` is passed.
 Errors: routed through :func:`_dispatch`, which loads config and invokes the
 verb handler inside a single try/except so neither config-load nor verb
 execution can leak a Python traceback. Partial-failure inlining for walks
-lives inside :func:`seer.repo.connections.walk` /
-:func:`seer.repo.graph.build_graph`.
+lives inside :func:`antoine.repo.connections.walk` /
+:func:`antoine.repo.graph.build_graph`.
 """
 
 from __future__ import annotations
@@ -22,19 +22,19 @@ import json
 import sys
 from pathlib import Path
 
-from seer.cli._errors import (
+from antoine.cli._errors import (
     EXIT_ENV_ERROR,
     EXIT_INTERNAL,
     EXIT_USER_ERROR,
-    SeerError,
+    AntoineError,
 )
-from seer.cli._output import emit_error, emit_result
-from seer.repo.config import RepoMapConfig, load_config
-from seer.repo.connections import walk
-from seer.repo.errors import path_not_a_directory
-from seer.repo.graph import build_graph
-from seer.repo.profile import profile_deep, profile_shallow
-from seer.repo.render import (
+from antoine.cli._output import emit_error, emit_result
+from antoine.repo.config import RepoMapConfig, load_config
+from antoine.repo.connections import walk
+from antoine.repo.errors import path_not_a_directory
+from antoine.repo.graph import build_graph
+from antoine.repo.profile import profile_deep, profile_shallow
+from antoine.repo.render import (
     render_connections_markdown,
     render_graph_markdown,
     render_profile_markdown,
@@ -102,9 +102,9 @@ def _graph(args: argparse.Namespace, cfg: RepoMapConfig) -> int:
 
 
 def _build_parser() -> argparse.ArgumentParser:
-    """Build and return the argparse parser for ``python -m seer.repo``."""
+    """Build and return the argparse parser for ``python -m antoine.repo``."""
     parser = argparse.ArgumentParser(
-        prog="seer.repo",
+        prog="antoine.repo",
         description="repo-map engine: profile / connections / graph.",
     )
     sub = parser.add_subparsers(dest="verb")
@@ -178,19 +178,19 @@ def _dispatch(args: argparse.Namespace) -> int:
     """Load config and invoke the verb handler with structured error wrapping.
 
     Centralises the policy: every failure — whether it originates in
-    :func:`seer.repo.config.load_config` or inside a verb handler — is
-    routed through :func:`seer.cli._output.emit_error` and translated to an
+    :func:`antoine.repo.config.load_config` or inside a verb handler — is
+    routed through :func:`antoine.cli._output.emit_error` and translated to an
     exit code. No Python traceback leaks.
     """
     json_mode = bool(getattr(args, "json", False))
     try:
         cfg = load_config()
         return args.func(args, cfg)
-    except SeerError as err:
+    except AntoineError as err:
         emit_error(err, json_mode=json_mode)
         return err.code
     except json.JSONDecodeError as err:
-        wrapped = SeerError(
+        wrapped = AntoineError(
             code=EXIT_ENV_ERROR,
             kind="env_error",
             message="Malformed .claude/skills/repo-map/config.json",
@@ -200,19 +200,19 @@ def _dispatch(args: argparse.Namespace) -> int:
         emit_error(wrapped, json_mode=json_mode)
         return wrapped.code
     except Exception as err:  # noqa: BLE001  # pylint: disable=broad-exception-caught
-        wrapped = SeerError(
+        wrapped = AntoineError(
             code=EXIT_INTERNAL,
             kind="bug",
             message=f"unexpected: {err.__class__.__name__}: {err}",
-            reason="An unhandled exception escaped a seer.repo verb.",
-            remediation="file a bug at https://github.com/agentculture/seer-cli/issues",
+            reason="An unhandled exception escaped a antoine.repo verb.",
+            remediation="file a bug at https://github.com/agentculture/antoine/issues",
         )
         emit_error(wrapped, json_mode=json_mode)
         return wrapped.code
 
 
 def main(argv: list[str] | None = None) -> int:
-    """argparse entry point for ``python -m seer.repo``."""
+    """argparse entry point for ``python -m antoine.repo``."""
     parser = _build_parser()
     args = parser.parse_args(argv)
     if args.verb is None:

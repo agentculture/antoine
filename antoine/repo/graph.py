@@ -1,7 +1,7 @@
 """Multi-root workspace view: every repo found + every edge between them.
 
 This is the "show me what's in this workspace" verb, distinct from
-:func:`seer.repo.connections.walk` which traverses outward from a single seed.
+:func:`antoine.repo.connections.walk` which traverses outward from a single seed.
 """
 
 from __future__ import annotations
@@ -11,10 +11,10 @@ import re
 from pathlib import Path
 from typing import Any
 
-from seer.cli._errors import SeerError
-from seer.repo.connections import _edges_from_profile
-from seer.repo.detect import find_repos, resolve_name
-from seer.repo.profile import profile_shallow
+from antoine.cli._errors import AntoineError
+from antoine.repo.connections import _edges_from_profile
+from antoine.repo.detect import find_repos, resolve_name
+from antoine.repo.profile import profile_shallow
 
 # ASCII flag is essential: without it, ``\W`` in Python 3 excludes Unicode
 # letters/digits from the "unsafe" set, which would leave non-ASCII chars
@@ -54,7 +54,7 @@ def _profile_or_walk_error(
     """
     try:
         return profile_shallow(path)
-    except SeerError as err:
+    except AntoineError as err:
         if strict:
             raise
         walk_errors.append(
@@ -111,13 +111,13 @@ def build_graph(
     ----------
     roots:
         One or more workspace root directories.  Each is scanned with
-        :func:`seer.repo.detect.find_repos`; results are unioned.
+        :func:`antoine.repo.detect.find_repos`; results are unioned.
     additional_markers:
         Extra filenames treated as repo markers during discovery.
     skip_dirs:
         Directory names skipped during discovery.
     strict:
-        When ``True``, re-raise the first per-node :class:`SeerError`
+        When ``True``, re-raise the first per-node :class:`AntoineError`
         instead of inlining it into ``walk_errors``.
 
     Returns

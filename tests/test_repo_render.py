@@ -1,9 +1,9 @@
-"""Tests for seer.repo.render."""
+"""Tests for antoine.repo.render."""
 
 from __future__ import annotations
 
-from seer.cli._errors import SeerError
-from seer.repo.render import (
+from antoine.cli._errors import AntoineError
+from antoine.repo.render import (
     render_connections_markdown,
     render_error_markdown,
     render_graph_markdown,
@@ -150,7 +150,7 @@ def test_render_profile_markdown_deep_adds_sections() -> None:
 
 
 def test_render_error_markdown() -> None:
-    err = SeerError(
+    err = AntoineError(
         code=1,
         kind="user_error",
         message="Cannot find pyproject.toml in /x",
@@ -289,8 +289,8 @@ def test_render_profile_markdown_git_remote_positive() -> None:
     fx["git_remote"] = {
         "host": "github.com",
         "owner": "agentculture",
-        "repo": "seer-cli",
-        "url": "git@github.com:agentculture/seer-cli.git",
+        "repo": "antoine",
+        "url": "git@github.com:agentculture/antoine.git",
         "ref": "origin",
     }
     md = render_profile_markdown(fx)

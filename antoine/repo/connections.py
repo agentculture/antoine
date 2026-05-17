@@ -7,7 +7,7 @@ Edge types emitted:
   * ``vendor``  — from vendored_skills' ``source`` provenance
 
 Each edge target name is resolved against repos discovered under
-``roots`` via :func:`seer.repo.detect.find_repos`. Unresolvable target names
+``roots`` via :func:`antoine.repo.detect.find_repos`. Unresolvable target names
 become "external" nodes (no path, no profile).
 
 Per-node errors during the walk are collected in the result's
@@ -21,16 +21,16 @@ from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Any
 
-from seer.cli._errors import SeerError
-from seer.repo.detect import find_repos, resolve_name
-from seer.repo.errors import invalid_depth, path_not_a_directory
-from seer.repo.profile import profile_deep, profile_shallow
+from antoine.cli._errors import AntoineError
+from antoine.repo.detect import find_repos, resolve_name
+from antoine.repo.errors import invalid_depth, path_not_a_directory
+from antoine.repo.profile import profile_deep, profile_shallow
 
 
 def _coerce_depth(depth: int | str | None) -> int | str:
     """Normalise *depth* to a non-negative ``int`` or the sentinel ``"all"``.
 
-    Raises :func:`seer.repo.errors.invalid_depth` for any value that is
+    Raises :func:`antoine.repo.errors.invalid_depth` for any value that is
     neither a non-negative integer nor the string ``"all"``.
     """
     if depth is None:
@@ -195,7 +195,7 @@ def _expand_node(
         outgoing = _edges_from_profile(current_name, shallow)
         state.edges.extend(outgoing)
         _enqueue_targets(outgoing, state, current_hop)
-    except SeerError as err:
+    except AntoineError as err:
         if opts.strict:
             raise
         state.walk_errors.append(
@@ -249,7 +249,7 @@ def walk(  # pylint: disable=too-many-arguments
     seed:
         The root repo to start from (must be an existing directory).
     roots:
-        Workspace roots scanned by :func:`seer.repo.detect.find_repos` to
+        Workspace roots scanned by :func:`antoine.repo.detect.find_repos` to
         resolve edge targets to local paths.
     depth:
         How many hops to follow.  ``1`` visits direct neighbours only;
@@ -264,7 +264,7 @@ def walk(  # pylint: disable=too-many-arguments
     skip_dirs:
         Directory names skipped during discovery.
     strict:
-        When *True*, a per-node :class:`SeerError` re-raises immediately
+        When *True*, a per-node :class:`AntoineError` re-raises immediately
         instead of being collected in ``walk_errors``.
 
     Returns

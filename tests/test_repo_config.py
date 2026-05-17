@@ -1,4 +1,4 @@
-"""Tests for seer.repo.config."""
+"""Tests for antoine.repo.config."""
 
 from __future__ import annotations
 
@@ -7,7 +7,7 @@ from pathlib import Path
 
 import pytest
 
-from seer.repo.config import DEFAULT_SKIP_DIRS, RepoMapConfig, load_config
+from antoine.repo.config import DEFAULT_SKIP_DIRS, RepoMapConfig, load_config
 
 
 def test_defaults() -> None:

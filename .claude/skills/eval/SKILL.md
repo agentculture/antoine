@@ -7,8 +7,8 @@ description: >
   dispatches + records, then `summarize` + commit to the round's
   accumulator file. Use when the user says "run eval set", "eval",
   "scripts-eval", "round-NN set", or asks to execute a row of the corpus.
-  Three arms: A (banned — rider forbids the seer skills), B (directed
-  — rider instructs use of seer skills), C (organic — rider permits
+  Three arms: A (banned — rider forbids the antoine skills), B (directed
+  — rider instructs use of antoine skills), C (organic — rider permits
   but doesn't direct). Two judge pairs: A-vs-B ("do the skills help
   when used") and A-vs-C ("do the skills get adopted organically").
   `judge prepare --pair AB|AC` selects the pair.
@@ -28,17 +28,17 @@ operator procedure that sequences them per session.
 Before doing anything, verify the user's intent matches the session
 state. Stop and ask if any of these hold:
 
-- `env | grep SEER_EVAL_RUN_ID` is empty → the harness hooks no-op, no
+- `env | grep ANTOINE_EVAL_RUN_ID` is empty → the harness hooks no-op, no
   metrics get captured. Operator needs to re-launch with the env vars
   exported.
-- `SEER_EVAL_ARM` is set to anything other than `A`, `B`, or `C` → bad config.
+- `ANTOINE_EVAL_ARM` is set to anything other than `A`, `B`, or `C` → bad config.
 - User says "do arm C" but the matching arm-A cells don't exist on
-  disk under `experiments/scripts_eval/results/$SEER_EVAL_RUN_ID/arm-A/`
+  disk under `experiments/scripts_eval/results/$ANTOINE_EVAL_RUN_ID/arm-A/`
   → arm A must complete first; there's nothing to pair against.
 
 All three arms run with `repo-map` and `code-lookup` enabled on disk.
 Arm-A's constraint is **verbal** — the rider in the dispatched prompt
-is the sole guard against the subagent using the seer skills. Do not
+is the sole guard against the subagent using the antoine skills. Do not
 edit the rider; copy it verbatim. (Earlier versions of this skill
 physically moved `.claude/skills/repo-map/` aside for arm A as
 defense-in-depth; that step was dropped because the rider proved
@@ -46,13 +46,13 @@ sufficient and the move-aside dance made operator setup brittle.)
 
 Three arms, three questions they answer:
 
-- **A (banned)** — verbal rider forbids both seer skills. Establishes
+- **A (banned)** — verbal rider forbids both antoine skills. Establishes
   the "without the new skills" baseline.
 - **B (directed)** — verbal rider instructs the subagent to use the
-  seer skills where applicable. Establishes the "with the new skills,
+  antoine skills where applicable. Establishes the "with the new skills,
   when actually used" upper bound.
 - **C (organic)** — verbal rider permits but does not direct use of
-  the seer skills. Measures organic adoption rate.
+  the antoine skills. Measures organic adoption rate.
 
 A-vs-B is the primary "do the skills help?" comparison; A-vs-C is the
 adoption canary. The judge supports both pairs via the `--pair` flag.
@@ -60,7 +60,7 @@ adoption canary. The judge supports both pairs via the `--pair` flag.
 ## Preflight (every session)
 
 ```bash
-env | grep -E "^SEER_EVAL_(RUN_ID|ARM)="
+env | grep -E "^ANTOINE_EVAL_(RUN_ID|ARM)="
 # expect both set to the intended round / arm
 ```
 
@@ -68,11 +68,11 @@ If unset, export them in your shell before launching `claude`:
 
 ```bash
 # arm-A session (banned):
-export SEER_EVAL_RUN_ID=2026-05-NN-round-XX SEER_EVAL_ARM=A
+export ANTOINE_EVAL_RUN_ID=2026-05-NN-round-XX ANTOINE_EVAL_ARM=A
 # arm-B session (directed):
-export SEER_EVAL_RUN_ID=2026-05-NN-round-XX SEER_EVAL_ARM=B
+export ANTOINE_EVAL_RUN_ID=2026-05-NN-round-XX ANTOINE_EVAL_ARM=B
 # arm-C session (organic):
-export SEER_EVAL_RUN_ID=2026-05-NN-round-XX SEER_EVAL_ARM=C
+export ANTOINE_EVAL_RUN_ID=2026-05-NN-round-XX ANTOINE_EVAL_ARM=C
 ```
 
 `experiments/scripts_eval/switch-arm.sh A|B|C <run_id>` does the same
@@ -82,7 +82,7 @@ If this is the first set of the run (idempotent, safe to re-run):
 
 ```bash
 uv run --group experiments python -m experiments.scripts_eval.manifest \
-    init --run $SEER_EVAL_RUN_ID
+    init --run $ANTOINE_EVAL_RUN_ID
 ```
 
 ## Arm-A procedure
@@ -99,11 +99,11 @@ uv run --group experiments python -m experiments.scripts_eval.manifest \
    ```text
 
    Constraints (verbatim):
-   - You may NOT use the `repo-map` skill, `python -m seer.repo`,
-     the `seer.repo` Python module, or any `scripts/*.sh` paths under
+   - You may NOT use the `repo-map` skill, `python -m antoine.repo`,
+     the `antoine.repo` Python module, or any `scripts/*.sh` paths under
      `.claude/skills/repo-map/`.
-   - You may NOT use the `code-lookup` skill, the `seer.lookup`
-     Python module, the `seer grep` / `seer recent` / `seer classify`
+   - You may NOT use the `code-lookup` skill, the `antoine.lookup`
+     Python module, the `antoine grep` / `antoine recent` / `antoine classify`
      CLI verbs, or any `scripts/*.sh` paths under
      `.claude/skills/code-lookup/`.
      If you cannot answer without them, say so explicitly and stop.
@@ -121,7 +121,7 @@ uv run --group experiments python -m experiments.scripts_eval.manifest \
 
    ```bash
    TRIAL_ID=$(uv run --group experiments python -m experiments.scripts_eval.trial \
-       start --run $SEER_EVAL_RUN_ID --arm $SEER_EVAL_ARM \
+       start --run $ANTOINE_EVAL_RUN_ID --arm $ANTOINE_EVAL_ARM \
        --target <target> --question <question_id> --trial <n>)
    ```
 
@@ -140,17 +140,17 @@ uv run --group experiments python -m experiments.scripts_eval.manifest \
    ```
 
 6. Confirm the cell JSON appeared under
-   `experiments/scripts_eval/results/$SEER_EVAL_RUN_ID/arm-A/`.
+   `experiments/scripts_eval/results/$ANTOINE_EVAL_RUN_ID/arm-A/`.
 
 **After all 3 trials**, summarize + commit:
 
 ```bash
 uv run --group experiments python -m experiments.scripts_eval.summarize \
-    --run $SEER_EVAL_RUN_ID \
-    --out docs/eval-rounds/$SEER_EVAL_RUN_ID.md
+    --run $ANTOINE_EVAL_RUN_ID \
+    --out docs/eval-rounds/$ANTOINE_EVAL_RUN_ID.md
 
-git add docs/eval-rounds/$SEER_EVAL_RUN_ID.md
-git commit -m "$SEER_EVAL_RUN_ID: arm-A captured for <target>/<question_id> (3 trials)"
+git add docs/eval-rounds/$ANTOINE_EVAL_RUN_ID.md
+git commit -m "$ANTOINE_EVAL_RUN_ID: arm-A captured for <target>/<question_id> (3 trials)"
 ```
 
 Report back: cell count under arm-A/, what's pending for arm-B and
@@ -161,7 +161,7 @@ accumulator file.
 
 Arm-B captures the **directed** trials so the A-vs-B judge run can
 assess "do the skills help when actually used?". Capture happens in
-its own session (`SEER_EVAL_ARM=B`); the A-vs-B judges then run in
+its own session (`ANTOINE_EVAL_ARM=B`); the A-vs-B judges then run in
 the arm-C session's Judge phase, alongside the A-vs-C judges
 (`judge prepare --pair AB`).
 
@@ -173,12 +173,12 @@ the arm-C session's Judge phase, alongside the A-vs-C judges
    ```text
 
    Constraints (verbatim):
-   - For this question, you MUST use the seer skills where they
+   - For this question, you MUST use the antoine skills where they
      apply:
        * `repo-map` (`scripts/profile.sh`, `scripts/connections.sh`,
          `scripts/graph.sh` under `.claude/skills/repo-map/`) for
          repo overview, dependencies, and workspace shape.
-       * `code-lookup` (`seer grep`, `seer recent`, `seer classify`,
+       * `code-lookup` (`antoine grep`, `antoine recent`, `antoine classify`,
          or the equivalent scripts under
          `.claude/skills/code-lookup/`) for symbol references,
          recent commit-symbol diffs, and project-kind classification.
@@ -196,7 +196,7 @@ the arm-C session's Judge phase, alongside the A-vs-C judges
 
    ```bash
    TRIAL_ID=$(uv run --group experiments python -m experiments.scripts_eval.trial \
-       start --run $SEER_EVAL_RUN_ID --arm $SEER_EVAL_ARM \
+       start --run $ANTOINE_EVAL_RUN_ID --arm $ANTOINE_EVAL_ARM \
        --target <target> --question <question_id> --trial <n>)
    # dispatch one Explore subagent with the rendered prompt above
    uv run --group experiments python -m experiments.scripts_eval.trial \
@@ -204,17 +204,17 @@ the arm-C session's Judge phase, alongside the A-vs-C judges
    ```
 
 3. Confirm the cell JSON appeared under
-   `experiments/scripts_eval/results/$SEER_EVAL_RUN_ID/arm-B/`.
+   `experiments/scripts_eval/results/$ANTOINE_EVAL_RUN_ID/arm-B/`.
 
 **After all 3 trials**, summarize + commit:
 
 ```bash
 uv run --group experiments python -m experiments.scripts_eval.summarize \
-    --run $SEER_EVAL_RUN_ID \
-    --out docs/eval-rounds/$SEER_EVAL_RUN_ID.md
+    --run $ANTOINE_EVAL_RUN_ID \
+    --out docs/eval-rounds/$ANTOINE_EVAL_RUN_ID.md
 
-git add docs/eval-rounds/$SEER_EVAL_RUN_ID.md
-git commit -m "$SEER_EVAL_RUN_ID: arm-B captured for <target>/<question_id> (3 trials)"
+git add docs/eval-rounds/$ANTOINE_EVAL_RUN_ID.md
+git commit -m "$ANTOINE_EVAL_RUN_ID: arm-B captured for <target>/<question_id> (3 trials)"
 ```
 
 Report back: cell count under arm-B/, whether the subagent actually
@@ -227,7 +227,7 @@ pending set per the run-state table.
 **Precondition check (mandatory):**
 
 ```bash
-ls experiments/scripts_eval/results/$SEER_EVAL_RUN_ID/arm-A/<target>-<question_id>-t*.json
+ls experiments/scripts_eval/results/$ANTOINE_EVAL_RUN_ID/arm-A/<target>-<question_id>-t*.json
 # expect: 3 files (t1, t2, t3)
 ```
 
@@ -246,7 +246,7 @@ If fewer than 3, stop — arm A must complete first.
    - You may use the `repo-map` skill (and its scripts under
      `.claude/skills/repo-map/`) and the `code-lookup` skill (and its
      scripts under `.claude/skills/code-lookup/`) at your discretion.
-     This includes `seer grep` / `seer recent` / `seer classify`.
+     This includes `antoine grep` / `antoine recent` / `antoine classify`.
    - After answering, append two sections and stop:
      ### tools_used
      - <ToolName>: <count>
@@ -258,7 +258,7 @@ If fewer than 3, stop — arm A must complete first.
 
    ```bash
    TRIAL_ID=$(uv run --group experiments python -m experiments.scripts_eval.trial \
-       start --run $SEER_EVAL_RUN_ID --arm $SEER_EVAL_ARM \
+       start --run $ANTOINE_EVAL_RUN_ID --arm $ANTOINE_EVAL_ARM \
        --target <target> --question <question_id> --trial <n>)
    # dispatch one Explore subagent with the rendered prompt above
    uv run --group experiments python -m experiments.scripts_eval.trial \
@@ -286,7 +286,7 @@ cells exist) and then the A-vs-B judge (if arm-B cells exist):
 
    ```bash
    uv run --group experiments python -m experiments.scripts_eval.judge \
-       prepare --run $SEER_EVAL_RUN_ID \
+       prepare --run $ANTOINE_EVAL_RUN_ID \
        --pair AC \
        --pair-key <target>/<question_id>/<n> \
        --seed 0 > /tmp/judge-AC-<n>.json
@@ -317,7 +317,7 @@ cells exist) and then the A-vs-B judge (if arm-B cells exist):
    A_LABEL=$(jq -r .blind_label_for_A /tmp/judge-AC-<n>.json)
    C_LABEL=$(jq -r .blind_label_for_C /tmp/judge-AC-<n>.json)
    uv run --group experiments python -m experiments.scripts_eval.judge \
-       record --run $SEER_EVAL_RUN_ID \
+       record --run $ANTOINE_EVAL_RUN_ID \
        --pair AC \
        --pair-key <target>/<question_id>/<n> \
        --blind-label-for-a "$A_LABEL" \
@@ -332,7 +332,7 @@ cells exist) and then the A-vs-B judge (if arm-B cells exist):
 
    ```bash
    uv run --group experiments python -m experiments.scripts_eval.judge \
-       prepare --run $SEER_EVAL_RUN_ID \
+       prepare --run $ANTOINE_EVAL_RUN_ID \
        --pair AB \
        --pair-key <target>/<question_id>/<n> \
        --seed 0 > /tmp/judge-AB-<n>.json
@@ -342,7 +342,7 @@ cells exist) and then the A-vs-B judge (if arm-B cells exist):
    A_LABEL=$(jq -r .blind_label_for_A /tmp/judge-AB-<n>.json)
    B_LABEL=$(jq -r .blind_label_for_B /tmp/judge-AB-<n>.json)
    uv run --group experiments python -m experiments.scripts_eval.judge \
-       record --run $SEER_EVAL_RUN_ID \
+       record --run $ANTOINE_EVAL_RUN_ID \
        --pair AB \
        --pair-key <target>/<question_id>/<n> \
        --blind-label-for-a "$A_LABEL" \
@@ -363,19 +363,19 @@ land under `cell["judges"]["AB"]` only.
 
 ```bash
 uv run --group experiments python -m experiments.scripts_eval.validate \
-    --run $SEER_EVAL_RUN_ID
+    --run $ANTOINE_EVAL_RUN_ID
 
 uv run --group experiments python -m experiments.scripts_eval.summarize \
-    --run $SEER_EVAL_RUN_ID \
-    --out docs/eval-rounds/$SEER_EVAL_RUN_ID.md
+    --run $ANTOINE_EVAL_RUN_ID \
+    --out docs/eval-rounds/$ANTOINE_EVAL_RUN_ID.md
 
-git add docs/eval-rounds/$SEER_EVAL_RUN_ID.md
-git commit -m "$SEER_EVAL_RUN_ID: completed <target>/<question_id> (both arms + judge)"
+git add docs/eval-rounds/$ANTOINE_EVAL_RUN_ID.md
+git commit -m "$ANTOINE_EVAL_RUN_ID: completed <target>/<question_id> (both arms + judge)"
 ```
 
 Report back:
 - A-vs-B winners (A / B / tie) and A-vs-C winners (A / C / tie).
-- Whether arm B and arm C actually used the seer scripts (look at the
+- Whether arm B and arm C actually used the antoine scripts (look at the
   `### tools_used` of each cell — `B_did_not_use_scripts` and
   `C_did_not_use_scripts` are findings, not bugs).
 - The next pending set per the run-state table.
@@ -383,7 +383,7 @@ Report back:
 ## Reading the run state
 
 The committed run-state table and per-set verdicts live in
-`docs/eval-rounds/$SEER_EVAL_RUN_ID.md`, between the
+`docs/eval-rounds/$ANTOINE_EVAL_RUN_ID.md`, between the
 `<!-- runstate:start -->` / `<!-- runstate:end -->` and
 `<!-- evidence:start -->` / `<!-- evidence:end -->` markers. `summarize.py`
 rewrites those regions idempotently — do not hand-edit them.
@@ -394,6 +394,6 @@ are needed; `judged` below the arm counts means judges still owe verdicts.
 
 ## Cite-don't-import
 
-This skill is original to seer-cli (the harness only exists here). When
+This skill is original to antoine (the harness only exists here). When
 promoted upstream, it would re-vendor into steward's skill suppliers —
 update `docs/skill-sources.md` accordingly at that point.

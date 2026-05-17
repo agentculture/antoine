@@ -1,4 +1,4 @@
-"""Markdown emitter for seer.lookup.classify."""
+"""Markdown emitter for antoine.lookup.classify."""
 
 from __future__ import annotations
 

@@ -1,4 +1,4 @@
-"""Domain-specific :class:`SeerError` factories for seer.repo.
+"""Domain-specific :class:`AntoineError` factories for antoine.repo.
 
 Centralising error construction here keeps message / reason / remediation
 copy uniform across every raise site.
@@ -8,12 +8,12 @@ from __future__ import annotations
 
 from pathlib import Path
 
-from seer.cli._errors import EXIT_ENV_ERROR, EXIT_USER_ERROR, SeerError
+from antoine.cli._errors import EXIT_ENV_ERROR, EXIT_USER_ERROR, AntoineError
 
 
-def manifest_not_found(path: Path) -> SeerError:
-    """Return a SeerError for a missing pyproject.toml manifest."""
-    return SeerError(
+def manifest_not_found(path: Path) -> AntoineError:
+    """Return a AntoineError for a missing pyproject.toml manifest."""
+    return AntoineError(
         code=EXIT_USER_ERROR,
         kind="user_error",
         message=f"Cannot find pyproject.toml in {path}",
@@ -30,9 +30,9 @@ def manifest_not_found(path: Path) -> SeerError:
     )
 
 
-def malformed_pyproject(path: Path, detail: str) -> SeerError:
-    """Return a SeerError for a pyproject.toml that exists but won't parse."""
-    return SeerError(
+def malformed_pyproject(path: Path, detail: str) -> AntoineError:
+    """Return a AntoineError for a pyproject.toml that exists but won't parse."""
+    return AntoineError(
         code=EXIT_ENV_ERROR,
         kind="env_error",
         message=f"Cannot parse {path}",
@@ -44,9 +44,9 @@ def malformed_pyproject(path: Path, detail: str) -> SeerError:
     )
 
 
-def invalid_depth(value: str) -> SeerError:
-    """Return a SeerError for a `--depth` value that is neither a non-negative int nor 'all'."""
-    return SeerError(
+def invalid_depth(value: str) -> AntoineError:
+    """Return a AntoineError for a `--depth` value that is neither a non-negative int nor 'all'."""
+    return AntoineError(
         code=EXIT_USER_ERROR,
         kind="user_error",
         message=f"Invalid --depth value: '{value}'",
@@ -55,9 +55,9 @@ def invalid_depth(value: str) -> SeerError:
     )
 
 
-def path_not_a_directory(path: Path) -> SeerError:
-    """Return a SeerError for a path that doesn't exist or isn't a directory."""
-    return SeerError(
+def path_not_a_directory(path: Path) -> AntoineError:
+    """Return a AntoineError for a path that doesn't exist or isn't a directory."""
+    return AntoineError(
         code=EXIT_USER_ERROR,
         kind="user_error",
         message=f"Path does not exist or is not a directory: {path}",
@@ -66,10 +66,10 @@ def path_not_a_directory(path: Path) -> SeerError:
     )
 
 
-def seed_not_under_root(seed: Path, roots: list[Path]) -> SeerError:
-    """Return a SeerError for a seed repo that doesn't live under any configured root."""
+def seed_not_under_root(seed: Path, roots: list[Path]) -> AntoineError:
+    """Return a AntoineError for a seed repo that doesn't live under any configured root."""
     root_list = ", ".join(str(r) for r in roots)
-    return SeerError(
+    return AntoineError(
         code=EXIT_USER_ERROR,
         kind="user_error",
         message=f"Seed repo {seed} is not under any configured root",

@@ -97,8 +97,8 @@ Flags always override config.
 
 ## Engine
 
-The actual logic lives in `seer/repo/` and is invoked via
-`uv run python -m seer.repo <verb>`. The shell scripts are one-line wrappers; the
+The actual logic lives in `antoine/repo/` and is invoked via
+`uv run python -m antoine.repo <verb>`. The shell scripts are one-line wrappers; the
 agent-facing contract is the verbs and their flags, not the wrappers.
 
 > **Interpreter note:** the scripts use `uv run --directory <project-root>`
