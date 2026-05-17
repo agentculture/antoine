@@ -1,8 +1,4 @@
-"""`kata log` verb: parent + tail/gc/grep subcommands.
-
-Tail is implemented here. GC and grep land in Tasks 8 and 9; their
-subparsers stay wired to the `_unimplemented` placeholder until then.
-"""
+"""`kata log` verb: parent + tail/gc/grep subcommands."""
 
 from __future__ import annotations
 
@@ -20,8 +16,26 @@ def _no_subcommand(args: argparse.Namespace) -> int:
     return 0
 
 
-def _unimplemented(args: argparse.Namespace) -> int:
-    raise NotImplementedError(f"kata log {args.log_command} is not implemented yet")
+def _handle_grep(args: argparse.Namespace) -> int:
+    store = LogStore()
+    if not store.root.exists() or not any(store.root.glob("*.jsonl")):
+        raise AntoineError(
+            code=EXIT_ENV_ERROR,
+            message=("No capture data found in .antoine/log/. " "antoine has nothing to grep."),
+            remediation=(
+                "Run `kata learn` to see how to instrument your agent, "
+                "then start a session before grepping the log."
+            ),
+        )
+
+    needle = args.pattern
+    for entry in store.read_all():
+        haystack = " ".join(
+            v for v in (entry.tool, entry.bash_argv0 or "", entry.agent, entry.session) if v
+        )
+        if needle in haystack:
+            emit_result(entry.to_json_line().rstrip("\n"), json_mode=False)
+    return 0
 
 
 def _handle_tail(args: argparse.Namespace) -> int:
@@ -97,4 +111,5 @@ def register(sub: argparse._SubParsersAction) -> None:
     gc_p.set_defaults(func=_handle_gc)
 
     grep_p = subsub.add_parser("grep", help="filter log entries by substring")
-    grep_p.set_defaults(func=_unimplemented)
+    grep_p.add_argument("pattern", help="substring matched against tool/bash_argv0/agent/session")
+    grep_p.set_defaults(func=_handle_grep)

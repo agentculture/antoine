@@ -145,3 +145,81 @@ def test_log_gc_custom_ttl_flag(
     rc = main(["log", "gc", "--ttl-days", "1"])
     assert rc == 0
     assert not (log_root / "2026-05-17.jsonl").exists()
+
+
+def test_log_grep_matches_tool_substring(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+    capsys: pytest.CaptureFixture[str],
+) -> None:
+    monkeypatch.chdir(tmp_path)
+    log_root = tmp_path / ".antoine" / "log"
+    log_root.mkdir(parents=True)
+    (log_root / "2026-05-17.jsonl").write_text(
+        json.dumps(
+            {
+                "ts": "2026-05-17T10:00:00Z",
+                "session": "s1",
+                "agent": "claude-code",
+                "tool": "Bash",
+                "args_digest": "sha256:" + "0" * 64,
+                "bash_argv0": "git",
+            }
+        )
+        + "\n"
+        + json.dumps(
+            {
+                "ts": "2026-05-17T10:00:01Z",
+                "session": "s2",
+                "agent": "claude-code",
+                "tool": "Read",
+                "args_digest": "sha256:" + "0" * 64,
+            }
+        )
+        + "\n"
+    )
+
+    rc = main(["log", "grep", "Bash"])
+    assert rc == 0
+    out = capsys.readouterr().out
+    assert "s1" in out
+    assert "s2" not in out
+
+
+def test_log_grep_matches_bash_argv0(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+    capsys: pytest.CaptureFixture[str],
+) -> None:
+    monkeypatch.chdir(tmp_path)
+    log_root = tmp_path / ".antoine" / "log"
+    _seed_log(log_root, count=1)
+    rc = main(["log", "grep", "git"])
+    assert rc == 0
+    out = capsys.readouterr().out
+    assert "s0" in out
+
+
+def test_log_grep_no_matches_exits_zero_with_empty_output(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+    capsys: pytest.CaptureFixture[str],
+) -> None:
+    monkeypatch.chdir(tmp_path)
+    log_root = tmp_path / ".antoine" / "log"
+    _seed_log(log_root, count=1)
+    rc = main(["log", "grep", "xyzzy"])
+    assert rc == 0
+    assert capsys.readouterr().out == ""
+
+
+def test_log_grep_with_no_store_exits_two_with_error(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+    capsys: pytest.CaptureFixture[str],
+) -> None:
+    monkeypatch.chdir(tmp_path)
+    rc = main(["log", "grep", "anything"])
+    assert rc == 2
+    err = capsys.readouterr().err
+    assert "No capture data" in err
