@@ -31,8 +31,8 @@ wheels = [
 ]
 
 [[package]]
-name = "antoine"
-version = "0.9.0"
+name = "antoine-cli"
+version = "0.9.1"
 source = { editable = "." }
 dependencies = [
     { name = "pyyaml" },

@@ -1,6 +1,6 @@
 [project]
-name = "antoine"
-version = "0.9.0"
+name = "antoine-cli"
+version = "0.9.1"
 description = "antoine — codebase lookup and indexing for agent skills (greenfield AgentCulture sibling)."
 readme = "README.md"
 license = "MIT"

@@ -5,6 +5,12 @@ All notable changes to this project will be documented in this file.
 Format follows [Keep a Changelog](https://keepachangelog.com/). This project
 adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.9.1] - 2026-05-17
+
+### Changed
+
+- PyPI distribution renamed from `antoine` to `antoine-cli` to avoid name collision and stay consistent with the `kata-cli` / `code-lens-cli` alt-publish naming convention. The Python module (`antoine`) and console script (`antoine`) are unchanged; only the wheel-distribution name moves. `_resolve_version()` fallback list and `.github/workflows/publish.yml` publish loop updated to match.
+
 ## [0.9.0] - 2026-05-17
 
 ### Changed
