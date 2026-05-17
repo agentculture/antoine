@@ -7,8 +7,11 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 **antoine** = **"N to 1"** (an-to-one). The name encodes the goal: collapse
 the N ad-hoc tool calls an agent would otherwise make against a codebase
 (`ls` + `cat` + `grep` + `git log` + `git show` + …) into **one** call to a
-purpose-built `kata-cli` verb that returns the same information as structured
-data. Every verb antoine ships is a bet that some recurring N-call pattern
+purpose-built `kata` verb (or its `antoine` alias — both console scripts are
+defined in [`pyproject.toml`](./pyproject.toml); `kata-cli` is the PyPI
+**distribution** name, not a command name) that returns the same information
+as structured data. Every verb antoine ships is a bet that some recurring
+N-call pattern
 has a 1-call replacement that is cheaper, more reliable, and easier to
 delegate to a subagent. You are that agent — when you face a task shape
 covered by the dispatching table below, prefer the 1-call verb.

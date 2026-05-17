@@ -9,7 +9,8 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ### Changed
 
-- CLAUDE.md: add Name section explaining antoine = N to 1 (collapse N ad-hoc tool calls into one kata-cli verb)
+- CLAUDE.md + README.md: add Name section explaining antoine = N to 1 (collapse N ad-hoc tool calls into one `kata` / `antoine` verb; `kata-cli` is the PyPI distribution label, not a command name).
+- README.md: expand "What's here" to cover the three things antoine manages — the CLI surface (dual-published as `antoine-cli` / `kata-cli` / `code-lens-cli`), the `experiments/scripts_eval/` A/B harness, and the recorded results in `docs/eval-rounds/`.
 
 ## [0.9.1] - 2026-05-17
 
