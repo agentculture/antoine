@@ -5,6 +5,45 @@ All notable changes to this project will be documented in this file.
 Format follows [Keep a Changelog](https://keepachangelog.com/). This project
 adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.11.0] - 2026-05-17
+
+### Removed
+
+- `antoine.lookup` engine + `kata classify` / `kata grep` / `kata recent`
+  verbs — migrated to `code-lens-cli` v0.10.0.
+- `antoine.repo` engine + `python -m antoine.repo {profile,connections,graph}`
+  surface — migrated to `code-lens-cli` v0.10.0.
+- `.claude/skills/code-lookup/` and `.claude/skills/repo-map/` — re-homed
+  under `agentculture/code-lens-cli/.claude/skills/`.
+- 16 tests for the migrated surface (`test_ast_scope`, `test_classify*`,
+  `test_grep*`, `test_recent*`, `test_repo_*`).
+
+### Changed
+
+- `docs/skill-sources.md`: `code-lookup` and `repo-map` rows now point
+  at `code-lens-cli` as the upstream supplier; added "graduation"
+  precedent bullet to the vendoring policy.
+- `CLAUDE.md` "Dispatching subagents" table now names `code-lens`
+  verbs (soft dep — install with `uv tool install code-lens-cli`);
+  preserved as **evidence** of the first catalog this loop produced
+  rather than as a prescription antoine pushes downstream.
+- `README.md`: new "Results of this loop" section pointing at
+  `code-lens-cli`; corrected the alt-publish bullet to drop
+  `code-lens-cli` (which left the dual-publish loop in 0.10.0).
+
+### Migration
+
+- `kata classify .` → `code-lens classify .`
+- `kata grep <pattern> .` → `code-lens grep <pattern> .`
+- `kata recent .` → `code-lens recent .`
+- `python -m antoine.repo profile .` → `code-lens profile .`
+
+antoine continues to ship the capture/reduce/assess loop
+(`kata log {tail, gc, grep}` plus the forthcoming cells 2–8); the
+inspection verbs were extracted because they are the loop's *result*,
+not its mechanism. See <https://github.com/agentculture/code-lens-cli/issues/2>
+for handover history.
+
 ## [0.10.0] - 2026-05-17
 
 ### Added
