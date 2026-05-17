@@ -23,16 +23,19 @@ actually worth the bet, and the recorded results from past rounds.
   placeholder stubs. See [`CLAUDE.md`](./CLAUDE.md) for build / test /
   architecture details.
 
-- **`kata-cli` (and `code-lens-cli`) — alt-published PyPI distributions**
-  carrying the same wheel content as `antoine-cli`. Installing any of the
-  three exposes the same pair of console scripts — `antoine` and `kata`
-  (see [`pyproject.toml`](./pyproject.toml)). The dispatching directives
-  baked into [`CLAUDE.md`](./CLAUDE.md) refer to **verbs** invoked via the
-  `kata` / `antoine` commands; `kata-cli` is the distribution label users
-  `pip install`, not a command they run. The dual-publish loop is defined
-  in [`.github/workflows/`](./.github/workflows/); see
+- **`kata-cli` — alt-published PyPI distribution** carrying the same
+  wheel content as `antoine-cli`. Installing either exposes the same
+  pair of console scripts — `antoine` and `kata`
+  (see [`pyproject.toml`](./pyproject.toml)). `kata-cli` is the
+  distribution label users `pip install`, not a command they run. The
+  dual-publish loop is defined in
+  [`.github/workflows/`](./.github/workflows/); see
   [`CHANGELOG.md`](./CHANGELOG.md) entries for v0.7.0 / v0.7.1 for the
-  history of how the three distribution names were wired up.
+  history of how the distribution names were wired up. (A third name,
+  `code-lens-cli`, was published from this repo through v0.9.2; from
+  v0.10.0 onward it lives in [its own
+  repo](https://github.com/agentculture/code-lens-cli) — see "Results
+  of this loop" below.)
 
 - **`experiments/scripts_eval/`** — the A/B-test harness for the
   `repo-map` skill (env-var-gated hooks, three-layer scoring, 5-repo
@@ -51,3 +54,18 @@ actually worth the bet, and the recorded results from past rounds.
   *before* consulting the skills catalog, which is why the dispatching
   table lives in the parent agent's instructions rather than in skill
   descriptions.
+
+## Results of this loop
+
+antoine ships the *tool*. The first published *catalog of results* from
+running its capture/reduce/assess loop is
+[`code-lens-cli`](https://github.com/agentculture/code-lens-cli) —
+four 1-call verbs (`classify` / `recent` / `grep` / `profile`) that
+antoine maintainers identified as recurring N-call patterns and
+packaged into a sibling distribution. Install with
+`uv tool install code-lens-cli`. Most agents will install both.
+
+The migration history (antoine 0.10.0 → code-lens-cli 0.10.0,
+2026-05-17) is the first concrete proof that the loop produces shippable
+artifacts. Future cells (2–8) of the loop are designed to make catalogs
+like this one routine rather than artisanal.
