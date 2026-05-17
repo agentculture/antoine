@@ -106,7 +106,10 @@ def register(sub: argparse._SubParsersAction) -> None:
         description="Inspect, prune, or search the local kata capture log under ./.antoine/log/.",
     )
     parser.set_defaults(func=_no_subcommand, _parent_parser=parser)
-    subsub = parser.add_subparsers(dest="log_command")
+    # Nested parsers MUST share the structured-error wrapper used by the top
+    # level — otherwise `kata log tail --bogus` exits 2 via default argparse,
+    # bypassing the "antoine never crashes" contract. (Qodo #25 bug 1.)
+    subsub = parser.add_subparsers(dest="log_command", parser_class=type(parser))
 
     tail = subsub.add_parser("tail", help="print the last N captured entries")
     tail.add_argument("-n", default=10, type=int, help="number of entries (default: 10)")
