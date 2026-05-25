@@ -5,6 +5,49 @@ All notable changes to this project will be documented in this file.
 Format follows [Keep a Changelog](https://keepachangelog.com/). This project
 adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.12.0] - 2026-05-25
+
+Skills update from `guildmaster` ([antoine#28](https://github.com/agentculture/antoine/issues/28)):
+the AgentCulture skills-supplier role migrated from `steward` to `guildmaster`,
+and the vendored kit was resynced and expanded. Cite, don't import.
+
+### Added
+
+- **6 new vendored skills** under `.claude/skills/` (cite, don't import):
+  - `agent-config` — read-only one-agent config inventory; backs `guild show`.
+  - `doc-test-alignment` — STUB skill (contract only); verifies docs still
+    match code + tests.
+  - `pypi-maintainer` — switch a package install between production PyPI,
+    TestPyPI, and a local editable checkout.
+  - `think` / `spec-to-plan` / `assign-to-workforce` — the devague
+    idea→spec→plan→implement workflow trio. **Inbound:** origin
+    `agentculture/devague`, only re-broadcast by guildmaster. Runtime dep:
+    `uv tool install devague`.
+
+### Changed
+
+- **Supplier cutover `steward` → `guildmaster`.** `docs/skill-sources.md`
+  (intro, policy, all canonical rows), `CLAUDE.md` (Vendored Skills section),
+  and `.claude/skills.local.yaml.example` now name `guildmaster` as the
+  skills supplier; re-sync targets `../guildmaster/.claude/skills/<name>/`.
+- **Resynced the 5 already-vendored skills** to guildmaster's current copies:
+  `cicd`, `communicate`, `run-tests`, `sonarclaude`, `version-bump`.
+  `communicate` gains the supplier briefing templates
+  (`templates/skill-new-brief.md`).
+- **`type: command` normalized across every `SKILL.md`** (the 11 vendored
+  skills + the antoine-origin `eval`). antoine declares a culture agent
+  (`culture.yaml`), and culture/agex's skill loader silently skips a
+  type-less `SKILL.md`; load-bearing on the culture backend, harmless on
+  claude-code. Recorded as a per-row divergence in `docs/skill-sources.md`.
+- `.claude/skills.local.yaml.example` — fixed the stale `seer-cli` name
+  (now `antoine`) left over from the rename.
+
+### Preserved
+
+- antoine's `cicd/scripts/portability-lint.sh` divergence (drops the GNU-only
+  `xargs -r` flag at two sites, marked `# antoine divergence:`) was re-applied
+  after the verbatim resync, plus its `SKILL.md` description note.
+
 ## [0.11.0] - 2026-05-17
 
 ### Removed

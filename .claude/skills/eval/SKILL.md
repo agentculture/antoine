@@ -1,5 +1,6 @@
 ---
 name: eval
+type: command
 description: >
   Run one scripts-eval set — one `(target, question)` row from
   `experiments/scripts_eval/corpus.yaml` × 3 trials × one arm — including

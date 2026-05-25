@@ -1,4 +1,4 @@
-# Per-machine config for seer-cli's vendored skills.
+# Per-machine config for antoine's vendored skills.
 #
 # Skills read .claude/skills.local.yaml (git-ignored) and fall back to this
 # committed .example. Copy this file to .claude/skills.local.yaml and fill in
@@ -6,7 +6,7 @@
 # .example — keep those in the git-ignored copy only.
 
 # Path to the local Culture server manifest, used by skills that resolve
-# Culture agent suffixes or mesh channels. Leave empty if seer-cli is not yet
+# Culture agent suffixes or mesh channels. Leave empty if antoine is not yet
 # a registered mesh agent.
 culture_server_yaml: ""
 
@@ -15,5 +15,5 @@ culture_server_yaml: ""
 # without hard-coded absolute paths. Relative paths are resolved from the
 # repo root.
 sibling_projects: {}
-  # steward: ../steward
+  # guildmaster: ../guildmaster
   # appsec: ../appsec
