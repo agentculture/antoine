@@ -1,5 +1,6 @@
 ---
 name: run-tests
+type: command
 description: Run pytest with parallel execution and coverage. Use when running tests, verifying changes, or the user says "run tests", "test", or "pytest".
 ---
 

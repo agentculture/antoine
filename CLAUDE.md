@@ -76,9 +76,12 @@ blocks merge if it matches `main`) and prepends a `CHANGELOG.md` entry
 
 ## Vendored Skills
 
-`.claude/skills/` holds skills vendored from `steward` (cite, don't import).
-Provenance and divergence are tracked in `docs/skill-sources.md`. Re-sync
-from `../steward/.claude/skills/<name>/`.
+`.claude/skills/` holds skills vendored from `guildmaster`, the AgentCulture
+skills supplier (cite, don't import; the supplier role migrated from `steward`
+to `guildmaster` on 2026-05-25). Provenance and divergence are tracked in
+`docs/skill-sources.md`. Re-sync from `../guildmaster/.claude/skills/<name>/`.
+The inbound `think` / `spec-to-plan` / `assign-to-workforce` trio originates in
+`agentculture/devague` and is only re-broadcast by guildmaster.
 
 ## Experimental harness
 

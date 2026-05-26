@@ -1,11 +1,12 @@
 ---
 name: cicd
+type: command
 description: >
-  Steward's CI/CD lane, layered on `agex pr`. Delegates lint / open /
-  read / reply / delta to agex; adds two steward extensions — `status`
+  guildmaster's CI/CD lane, layered on `agex pr`. Delegates lint / open /
+  read / reply / delta to agex; adds two extensions — `status`
   (SonarCloud quality gate + hotspots + unresolved-thread tally) and
   `await` (read --wait + status with non-zero exit on Sonar ERROR or
-  unresolved threads). Use when: creating PRs in steward, handling
+  unresolved threads). Use when: creating PRs in guildmaster, handling
   review feedback, polling CI status, or the user says "create PR",
   "review comments", "address feedback", "resolve threads". Renamed
   from `pr-review` in steward 0.7.0; rebased on agex in 0.12.0.
@@ -13,7 +14,7 @@ description: >
   `xargs -r` flag for BSD/macOS portability — see `docs/skill-sources.md`.
 ---
 
-# CI/CD — Steward edition
+# CI/CD — guildmaster edition
 
 `agex pr` (in `agentculture/agex-cli`) is the upstream for the
 five core PR-lifecycle verbs — `lint`, `open`, `read`, `reply`,
@@ -27,13 +28,42 @@ What's left in this skill is **the steward-specific gating layer**:
   Sonar `ERROR` / unresolved threads. The single command to run after
   pushing a fix when you want "wake me when this PR is triage-able."
 
-Those two are the steward unique surface today. They're filed as a
-feature ask upstream
-([agex-cli#41](https://github.com/agentculture/agex-cli/issues/41));
-once they land they migrate out of this skill.
+Those two are the steward unique surface today. The `await` combo verb
+landed natively in agex
+([agex-cli#41](https://github.com/agentculture/agex-cli/issues/41), now
+closed); the gate extras that aren't yet native — SonarCloud hotspots,
+deploy-preview URL, an explicit resolved/unresolved thread tally — are
+tracked upstream in
+[agex-cli#52](https://github.com/agentculture/agex-cli/issues/52) and
+migrate out of this skill once they land.
 
 The workflow is encapsulated in `scripts/workflow.sh` — follow that
 (or call `agex pr` directly).
+
+## The agex-cli inversion (upstream-as-consumer)
+
+One consumer is special: **agex-cli itself**, the repo that owns `agex pr`.
+Vendoring this skill there verbatim would re-vendor bash that just wraps the
+Python agex-cli already ships, so agex-cli vendors it **adapted-thin**
+([agex-cli#53](https://github.com/agentculture/agex-cli/pull/53)):
+`workflow.sh` is the only script and it forwards
+`lint | open | read | reply | delta | await` straight to the native
+`agex pr <verb>` — including the native `agex pr await` combo verb (agex-cli
+0.21.0). The steward `status` / `await` shell extensions and the vendored
+helpers (`pr-reply.sh`, `_resolve-nick.sh`, `portability-lint.sh`) are all
+redundant there, each superseded by a native verb. For that one consumer the
+skill collapses to a **pure delegate**.
+
+The only gate bits not yet native are SonarCloud **hotspots**, the
+**deploy-preview URL**, and an explicit **resolved/unresolved thread tally** —
+tracked upstream in
+[agex-cli#52](https://github.com/agentculture/agex-cli/issues/52). Once those
+land, steward retires `pr-status.sh` too and `workflow.sh status/await`
+delegates to native `agex pr` everywhere.
+
+**For broadcasts:** a skill-update brief to agex-cli should expect this thin
+`workflow.sh`-only shape, not steward's five-file layout. (Ref:
+[steward#53](https://github.com/agentculture/steward/issues/53).)
 
 ## Prerequisites
 
@@ -119,6 +149,17 @@ Branch naming: `fix/<desc>`, `feat/<desc>`, `docs/<desc>`,
 (first agent's `suffix`), falling back to the git-repo basename. agex
 auto-appends the signature on `pr open` and `pr reply` only when the
 body isn't already signed.
+
+## Finishing a branch
+
+When implementation on a branch is complete and tests pass, go straight
+to `workflow.sh open` (push the branch + open the PR). Do **not** stop to
+present a *merge / PR / keep / discard* menu and wait for a choice — in
+AgentCulture the standing default is **always "push and create a Pull
+Request."** This overrides the Superpowers `finishing-a-development-branch`
+skill's interactive menu, which otherwise pauses the flow at the moment
+work is ready to integrate. Merge-locally, keep-as-is, and discard happen
+only when the user explicitly asks for one of them.
 
 ## Triage rules
 

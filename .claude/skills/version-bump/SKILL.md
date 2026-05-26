@@ -1,5 +1,6 @@
 ---
 name: version-bump
+type: command
 description: >
   Bump the semver version in pyproject.toml (major, minor, or patch) and
   prepend a Keep-a-Changelog entry to CHANGELOG.md. Use when preparing a

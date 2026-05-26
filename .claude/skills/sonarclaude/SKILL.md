@@ -1,5 +1,6 @@
 ---
 name: sonarclaude
+type: command
 description: >
   Query SonarCloud API for code quality data. Use when: checking quality gate status,
   fetching code issues or security hotspots, reviewing metrics (coverage, bugs, code smells),
