@@ -6,8 +6,9 @@ description: >
   culture.yaml, and the agent's local .claude/skills index. Use when an
   operator says "show agent <name>", "what does <agent> look like", or before
   teaching/onboarding an agent and you need to see its current kit + config.
-  Backs the `guild show` verb. Vendored from steward (cite-don't-import);
-  inventory only — it reports, it does not judge alignment or drift.
+  Backs the `guild show` verb. Vendored from guildmaster (cite-don't-import;
+  originated in steward); inventory only — it reports, it does not judge
+  alignment or drift.
 type: command
 ---
 

@@ -42,6 +42,18 @@ and the vendored kit was resynced and expanded. Cite, don't import.
 - `.claude/skills.local.yaml.example` — fixed the stale `seer-cli` name
   (now `antoine`) left over from the rename.
 
+### Fixed
+
+- **`agent-config/scripts/show.sh` description parser** (Qodo, PR #29) — the
+  awk extractor now also stops at the frontmatter terminator (`^---$`), not
+  just the next YAML key. Without it, a `description:` that is the last
+  frontmatter key bled into the markdown body — which the `type: command`
+  normalization above triggers by placing `type:` before `description:`.
+  Marked `# antoine divergence:`; to be filed upstream on guildmaster.
+- **`agent-config/SKILL.md` provenance** (Qodo, PR #29) — reworded `Vendored
+  from steward` → `Vendored from guildmaster (originated in steward)` so the
+  cited source matches antoine's actual supplier.
+
 ### Preserved
 
 - antoine's `cicd/scripts/portability-lint.sh` divergence (drops the GNU-only

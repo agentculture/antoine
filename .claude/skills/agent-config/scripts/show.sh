@@ -125,7 +125,11 @@ for s in "$DIR"/.claude/skills/*/SKILL.md; do
             flag = 1
             next
         }
-        flag && /^[a-z_-]+:/ { flag = 0 }
+        # antoine divergence: also stop at the frontmatter terminator (^---$),
+        # not just the next YAML key — otherwise a `description:` that is the
+        # last frontmatter key bleeds into the markdown body. File upstream on
+        # agentculture/guildmaster; see docs/skill-sources.md.
+        flag && (/^[a-zA-Z0-9_-]+:/ || /^---[[:space:]]*$/) { flag = 0 }
         flag { buf = buf " " $0 }
         END { gsub(/^[[:space:]]+|[[:space:]]+$/, "", buf); print buf }
     ' "$s")
